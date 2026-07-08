@@ -1,0 +1,26 @@
+package com.zading.todoapi.mapper;
+
+import com.zading.todoapi.dto.TodoResponse;
+import com.zading.todoapi.model.Todo;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+
+@Component
+public class TodoMapper {
+    public TodoResponse toResponse(Todo todo) {
+        return new TodoResponse(
+                todo.getId(),
+                todo.getTitle(),
+                todo.isCompleted(),
+                todo.getCreatedAt(),
+                todo.getUpdatedAt()
+        );
+    }
+
+    public List<TodoResponse> toResponseList(List<Todo> todos) {
+        return todos.stream()
+                .map(this::toResponse)
+                .toList();
+    }
+}
