@@ -464,6 +464,126 @@ mvn test
 - 如何用 curl 测接口
 - 如何用测试验证接口
 
+## 本周复盘问题
+
+1. 为什么要从控制台程序升级成 REST API？
+2. Controller、Service、Repository 分别负责什么？
+3. `@RequestBody` 的作用是什么？
+4. 为什么要有统一异常处理？
+5. 为什么第四周先用内存 Repository，而不是直接上数据库？
+6. MockMvc 测试验证的是什么？
+
+## 本周复盘问题参考答案
+
+### 1. 为什么要从控制台程序升级成 REST API？
+
+控制台程序主要给人通过终端使用，而 REST API 可以给前端、移动端或其他服务通过 HTTP 调用。
+
+升级成 REST API 后，Java 程序从“本地交互程序”变成了“后端服务”。
+
+调用链也变成：
+
+```text
+客户端 -> HTTP 请求 -> Spring Boot 后端 -> JSON 响应
+```
+
+这是真实 Web 后端项目的基础形态。
+
+### 2. Controller、Service、Repository 分别负责什么？
+
+Controller 负责 HTTP：
+
+- 接收请求
+- 读取路径参数、query 参数、请求体
+- 返回状态码和 JSON
+
+Service 负责业务逻辑：
+
+- 新增 Todo
+- 修改 Todo
+- 校验业务规则
+- 判断 Todo 是否存在
+
+Repository 负责数据访问：
+
+- 查询
+- 保存
+- 删除
+
+一句话：
+
+```text
+Controller 管入口，Service 管业务，Repository 管数据。
+```
+
+### 3. `@RequestBody` 的作用是什么？
+
+`@RequestBody` 用来把 HTTP 请求体里的 JSON 转成 Java 对象。
+
+例如请求体：
+
+```json
+{
+  "title": "学习 Spring Boot"
+}
+```
+
+可以被转换成：
+
+```java
+CreateTodoRequest
+```
+
+这样 Controller 就不用自己手动解析 JSON。
+
+### 4. 为什么要有统一异常处理？
+
+因为后端内部异常不应该直接暴露给客户端。
+
+统一异常处理可以把 Java 异常转换成稳定的 HTTP 响应。
+
+例如：
+
+```java
+throw new TodoNotFoundException(id);
+```
+
+最终返回：
+
+```text
+HTTP 404
+```
+
+并带上统一格式的错误 JSON。
+
+### 5. 为什么第四周先用内存 Repository，而不是直接上数据库？
+
+因为第四周的重点是 Spring Boot、HTTP、JSON、Controller、Service、Repository 和测试。
+
+如果一开始就加入数据库、JPA、SQL，学习负担会变大。
+
+先用内存 Repository 可以快速跑通 API 主链路：
+
+```text
+HTTP -> Controller -> Service -> Repository -> JSON
+```
+
+第五周再把底层存储替换成数据库。
+
+### 6. MockMvc 测试验证的是什么？
+
+MockMvc 用来模拟 HTTP 请求，验证接口行为。
+
+它可以验证：
+
+- 状态码是否正确
+- 响应 JSON 是否正确
+- 参数错误是否返回 400
+- 资源不存在是否返回 404
+- 创建、修改、删除流程是否正常
+
+MockMvc 不需要真实浏览器，也不需要前端页面。
+
 ## 建议学习节奏
 
 每天 2 小时：
@@ -476,3 +596,147 @@ mvn test
 ```
 
 别怕 Spring Boot 一开始“自动得有点玄学”。你先抓住请求链路，其他注解会慢慢变得顺眼。
+
+## 更多复盘问题
+
+1. `@RestController` 和普通 Java 类有什么区别？
+2. `@PathVariable` 和 `@RequestBody` 分别读取什么？
+3. 为什么创建成功要返回 `201 Created`？
+4. 为什么删除成功可以返回 `204 No Content`？
+5. `CreateTodoRequest` 为什么不直接使用 `Todo`？
+6. 为什么 API 错误响应要保持统一格式？
+7. curl 测试接口和 MockMvc 测试接口有什么区别？
+
+## 更多复盘问题参考答案
+
+### 1. `@RestController` 和普通 Java 类有什么区别？
+
+普通 Java 类只是一个普通对象，Spring Boot 不会自动把它当成接口入口。
+
+加上 `@RestController` 后，Spring 会把这个类注册为 Controller，并把方法返回值自动转换成 HTTP 响应。
+
+例如返回一个对象时，Spring 会把它序列化成 JSON。
+
+所以：
+
+```text
+@RestController = HTTP Controller + JSON 响应
+```
+
+### 2. `@PathVariable` 和 `@RequestBody` 分别读取什么？
+
+`@PathVariable` 读取 URL 路径上的变量。
+
+例如：
+
+```http
+GET /api/todos/1
+```
+
+对应：
+
+```java
+@PathVariable Long id
+```
+
+`@RequestBody` 读取请求体里的 JSON。
+
+例如：
+
+```json
+{
+  "title": "学习 Spring Boot"
+}
+```
+
+对应：
+
+```java
+@RequestBody CreateTodoRequest request
+```
+
+### 3. 为什么创建成功要返回 `201 Created`？
+
+`201 Created` 表示服务端成功创建了一个新资源。
+
+相比 `200 OK`，它更精确地表达了语义。
+
+创建 Todo 后，接口还可以通过 `Location` 响应头告诉客户端新资源地址：
+
+```text
+Location: /api/todos/1
+```
+
+这更符合 REST API 的设计习惯。
+
+### 4. 为什么删除成功可以返回 `204 No Content`？
+
+`204 No Content` 表示请求成功，但响应体为空。
+
+删除接口通常不需要再返回被删除的数据。
+
+所以：
+
+```text
+DELETE 成功 -> 204 No Content
+```
+
+这比返回一个空 JSON 更清晰。
+
+### 5. `CreateTodoRequest` 为什么不直接使用 `Todo`？
+
+因为请求模型和业务/数据模型职责不同。
+
+创建 Todo 时，前端只需要传：
+
+```json
+{
+  "title": "学习 Java"
+}
+```
+
+但 `Todo` 里可能有：
+
+```text
+id
+completed
+createdAt
+updatedAt
+```
+
+这些字段不应该由前端创建时随便传。
+
+所以用 `CreateTodoRequest` 明确接口允许传什么。
+
+### 6. 为什么 API 错误响应要保持统一格式？
+
+统一错误格式可以让前端更容易处理错误。
+
+例如所有错误都包含：
+
+```text
+timestamp
+status
+error
+message
+path
+```
+
+前端就可以用同一套逻辑展示错误信息，而不是每个接口单独适配。
+
+这也是 API 工程化的一部分。
+
+### 7. curl 测试接口和 MockMvc 测试接口有什么区别？
+
+curl 是手动调用接口，适合开发时快速验证。
+
+MockMvc 是自动化测试，适合长期保护接口行为。
+
+区别：
+
+```text
+curl     人手动执行
+MockMvc  测试代码自动执行
+```
+
+项目越复杂，越需要 MockMvc 这类自动化测试。

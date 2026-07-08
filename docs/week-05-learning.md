@@ -410,3 +410,270 @@ mvn test
 一句话总结：
 
 > 这一周你不是在学“怎么连数据库”这么简单，而是在学后端项目最核心的数据层设计方式。
+
+## 本周复盘问题
+
+1. 为什么要把内存存储换成数据库？
+2. Entity 是什么？
+3. 为什么 `JpaRepository` 不用自己实现？
+4. `findByCompleted`、`findByTitleContainingIgnoreCase` 为什么不用实现？
+5. 为什么默认使用 H2，而不是直接使用 PostgreSQL？
+6. 为什么 Controller 不应该直接调用 Repository？
+
+## 本周复盘问题参考答案
+
+### 1. 为什么要把内存存储换成数据库？
+
+内存存储只在程序运行期间存在，服务一重启数据就会丢失。
+
+数据库可以持久化数据：
+
+```text
+程序停止后，数据仍然保留
+```
+
+所以第五周的核心升级是：
+
+```text
+内存 Map -> 数据库表
+```
+
+### 2. Entity 是什么？
+
+Entity 是 Java 对象和数据库表之间的映射。
+
+例如：
+
+```java
+@Entity
+@Table(name = "todos")
+public class Todo {
+    private Long id;
+    private String title;
+    private boolean completed;
+}
+```
+
+对应数据库中的 `todos` 表。
+
+一句话：
+
+```text
+Entity 是数据库表在 Java 代码中的表达。
+```
+
+### 3. 为什么 `JpaRepository` 不用自己实现？
+
+因为 Spring Data JPA 会在运行时根据接口创建代理实现。
+
+当你写：
+
+```java
+public interface TodoRepository extends JpaRepository<Todo, Long> {
+}
+```
+
+它就自动拥有：
+
+```java
+findAll()
+findById()
+save()
+deleteById()
+existsById()
+```
+
+这些方法来自 `JpaRepository`，不需要自己写实现类。
+
+### 4. `findByCompleted`、`findByTitleContainingIgnoreCase` 为什么不用实现？
+
+这是 Spring Data JPA 的方法名查询。
+
+Spring 会根据方法名解析查询条件。
+
+例如：
+
+```java
+findByCompleted(true)
+```
+
+大致对应：
+
+```sql
+select * from todos where completed = true;
+```
+
+```java
+findByTitleContainingIgnoreCase("java")
+```
+
+大致对应：
+
+```sql
+select * from todos
+where lower(title) like lower('%java%');
+```
+
+前提是方法名里的字段要和 Entity 属性对上。
+
+### 5. 为什么默认使用 H2，而不是直接使用 PostgreSQL？
+
+因为本地不一定已经安装 PostgreSQL。
+
+如果默认连接 PostgreSQL，数据库不存在或服务没启动时，项目会启动失败。
+
+所以当前设计是：
+
+```text
+默认 profile -> H2 文件数据库
+postgres profile -> PostgreSQL
+test profile -> H2 内存数据库
+```
+
+这样既能马上运行，也能为后续 PostgreSQL 做准备。
+
+### 6. 为什么 Controller 不应该直接调用 Repository？
+
+Controller 的职责是处理 HTTP，Repository 的职责是操作数据，中间应该由 Service 承接业务逻辑。
+
+如果 Controller 直接调用 Repository，业务规则容易散落在接口层里。
+
+更清晰的结构是：
+
+```text
+Controller -> Service -> Repository
+```
+
+这样 Controller 更薄，Service 更容易测试和复用。
+
+## 更多复盘问题
+
+1. `@Entity` 和 `@Table` 分别有什么作用？
+2. `@Id` 和 `@GeneratedValue` 为什么经常一起出现？
+3. `JpaRepository<Todo, Long>` 里的两个泛型分别是什么意思？
+4. `Sort` 的作用是什么？
+5. `@RequestParam(required = false)` 表示什么？
+6. H2 文件数据库和 H2 内存数据库有什么区别？
+7. 为什么测试环境不直接使用本地开发数据库？
+
+## 更多复盘问题参考答案
+
+### 1. `@Entity` 和 `@Table` 分别有什么作用？
+
+`@Entity` 告诉 JPA：这个类是数据库实体，需要映射到数据库表。
+
+`@Table` 用来指定表名。
+
+例如：
+
+```java
+@Entity
+@Table(name = "todos")
+public class Todo {
+}
+```
+
+含义是：
+
+```text
+Todo 类 <-> todos 表
+```
+
+### 2. `@Id` 和 `@GeneratedValue` 为什么经常一起出现？
+
+`@Id` 表示这个字段是主键。
+
+`@GeneratedValue` 表示主键值由数据库或 JPA 自动生成。
+
+例如：
+
+```java
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+private Long id;
+```
+
+这样新增 Todo 时不需要手动指定 id。
+
+### 3. `JpaRepository<Todo, Long>` 里的两个泛型分别是什么意思？
+
+第一个泛型 `Todo` 表示这个 Repository 操作的 Entity 类型。
+
+第二个泛型 `Long` 表示主键类型。
+
+```java
+JpaRepository<Todo, Long>
+```
+
+含义是：
+
+```text
+操作 Todo 表
+Todo 的 id 类型是 Long
+```
+
+### 4. `Sort` 的作用是什么？
+
+`Sort` 用来指定查询结果排序方式。
+
+例如：
+
+```java
+Sort.by(Sort.Direction.ASC, "id")
+```
+
+表示按 `id` 升序排序。
+
+如果不指定排序，数据库返回顺序不一定稳定。
+
+### 5. `@RequestParam(required = false)` 表示什么？
+
+它表示这个 query 参数可以不传。
+
+例如：
+
+```java
+@RequestParam(required = false) Boolean completed
+```
+
+可以处理：
+
+```http
+GET /api/todos
+GET /api/todos?completed=true
+```
+
+如果不传，`completed` 就是 `null`。
+
+Service 可以根据是否为 `null` 决定是否筛选。
+
+### 6. H2 文件数据库和 H2 内存数据库有什么区别？
+
+H2 文件数据库会把数据保存到磁盘文件。
+
+```text
+服务重启后数据还在
+```
+
+H2 内存数据库只存在于进程内存中。
+
+```text
+测试结束后数据消失
+```
+
+所以开发默认用文件数据库，测试用内存数据库。
+
+### 7. 为什么测试环境不直接使用本地开发数据库？
+
+因为测试会频繁创建、修改、删除数据。
+
+如果直接使用开发数据库，可能污染本地数据。
+
+测试数据库应该：
+
+- 独立
+- 可重复
+- 易清理
+- 不依赖本地历史数据
+
+所以测试环境使用 H2 内存数据库更合适。

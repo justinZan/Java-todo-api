@@ -1,25 +1,58 @@
 # Java Todo API
 
-这是 Java 工程化学习项目：用 Spring Boot 把 Todo 从控制台程序升级成 REST API，并逐步接入数据库持久化。
+基于 Spring Boot 的 Todo REST API，提供 Todo 的创建、查询、修改、切换完成状态、删除、筛选等能力。
 
-你现在的学习重点不是“数据库”，而是先理解：
+## 功能特性
 
-```text
-HTTP 请求 -> Controller -> Service -> Repository -> 数据库 -> 返回 JSON
-```
+- RESTful Todo API
+- 请求 / 响应 DTO 分层
+- 全局异常处理
+- Bean Validation 参数校验
+- Spring Data JPA 数据持久化
+- Flyway 数据库迁移
+- 默认使用 H2 本地数据库
+- 支持 PostgreSQL profile
+- MockMvc 接口测试
 
 ## 技术栈
 
 - Java 21
 - Maven
-- Spring Boot
+- Spring Boot 3.3.2
 - Spring Web
 - Spring Validation
 - Spring Data JPA
 - Flyway
-- H2 Database，默认开发环境使用
-- PostgreSQL Driver，预留 Postgres 环境
-- JUnit / MockMvc
+- H2 Database
+- PostgreSQL Driver
+- JUnit 5 / MockMvc
+
+## 架构说明
+
+```text
+HTTP 请求
+  -> Controller
+  -> Service
+  -> Repository
+  -> Database
+
+Entity
+  -> Mapper
+  -> Response DTO
+```
+
+主要包结构：
+
+```text
+com.zading.todoapi
+├── controller   HTTP 接口入口
+├── dto          请求 / 响应对象
+├── exception    自定义异常和全局异常处理
+├── mapper       Entity 到 DTO 的转换
+├── model        JPA Entity
+├── repository   Spring Data JPA Repository
+└── service      业务逻辑
+```
 
 ## 项目结构
 
@@ -28,6 +61,9 @@ java-todo-api/
 ├── pom.xml
 ├── README.md
 ├── docs/
+│   ├── week-01-learning.md
+│   ├── week-02-learning.md
+│   ├── week-03-learning.md
 │   ├── week-04-learning.md
 │   ├── week-05-learning.md
 │   └── week-06-learning.md
@@ -36,24 +72,12 @@ java-todo-api/
     │   ├── java/com/zading/todoapi/
     │   │   ├── TodoApiApplication.java
     │   │   ├── controller/
-    │   │   │   ├── HelloController.java
-    │   │   │   └── TodoController.java
     │   │   ├── dto/
-    │   │   │   ├── ApiError.java
-    │   │   │   ├── CreateTodoRequest.java
-    │   │   │   ├── TodoResponse.java
-    │   │   │   └── UpdateTodoRequest.java
     │   │   ├── exception/
-    │   │   │   ├── GlobalExceptionHandler.java
-    │   │   │   └── TodoNotFoundException.java
     │   │   ├── mapper/
-    │   │   │   └── TodoMapper.java
     │   │   ├── model/
-    │   │   │   └── Todo.java
     │   │   ├── repository/
-    │   │   │   └── TodoRepository.java
     │   │   └── service/
-    │   │       └── TodoService.java
     │   └── resources/
     │       ├── application.properties
     │       ├── application-postgres.properties
@@ -61,64 +85,46 @@ java-todo-api/
     │           └── V1__create_todos_table.sql
     └── test/
         ├── java/com/zading/todoapi/
-        │   └── TodoApiApplicationTests.java
         └── resources/
             └── application-test.properties
 ```
 
-## 启动项目
+## 环境要求
 
-默认启动会使用 H2 文件数据库，所以你的电脑暂时没装 PostgreSQL 也可以运行。
+- JDK 21
+- Maven 3.9+
 
-```bash
-cd /Users/zading/Documents/Java/java-todo-api
-mvn spring-boot:run
-```
+PostgreSQL 是可选依赖。默认 profile 使用 H2，因此本地没有安装 PostgreSQL 也可以直接运行。
 
-启动成功后访问：
+## 配置说明
 
-```text
-http://localhost:8080/hello
-```
+### 默认配置
 
-返回：
+默认配置文件：
 
 ```text
-Hello Spring Boot
+src/main/resources/application.properties
 ```
 
-默认数据库文件会生成在：
+默认数据源：
+
+```properties
+spring.datasource.url=jdbc:h2:file:./data/todo-db-v2;MODE=PostgreSQL
+spring.datasource.username=sa
+spring.datasource.password=
+```
+
+数据库文件会生成在：
 
 ```text
-/Users/zading/Documents/Java/java-todo-api/data/todo-db-v2
+data/
 ```
 
-这个目录已经加入 `.gitignore`，不会提交到代码仓库。
+`data/` 目录已加入 Git 忽略规则。
 
-项目启动时，Flyway 会读取：
+### PostgreSQL 配置
 
-```text
-src/main/resources/db/migration/V1__create_todos_table.sql
-```
-
-并自动创建 `todos` 表。JPA 现在只负责校验 Entity 和数据库表是否匹配。
-
-## 切换到 PostgreSQL
-
-等你本地安装 PostgreSQL 后，先创建数据库：
-
-```sql
-CREATE DATABASE java_todo_api;
-```
-
-然后用 `postgres` profile 启动：
-
-```bash
-cd /Users/zading/Documents/Java/java-todo-api
-DB_USERNAME=postgres DB_PASSWORD=你的密码 mvn spring-boot:run -Dspring-boot.run.profiles=postgres
-```
-
-默认 PostgreSQL 配置在：
+PostgreSQL 配置文件：
 
 ```text
 src/main/resources/application-postgres.properties
@@ -126,55 +132,74 @@ src/main/resources/application-postgres.properties
 
 默认连接信息：
 
-```text
-host: localhost
-port: 5432
-database: java_todo_api
-username: postgres
-password: 从 DB_PASSWORD 环境变量读取
+```properties
+spring.datasource.url=${DB_URL:jdbc:postgresql://localhost:5432/java_todo_api}
+spring.datasource.username=${DB_USERNAME:postgres}
+spring.datasource.password=${DB_PASSWORD:}
 ```
 
-## 在 VS Code 里正确运行
+创建数据库：
 
-请用 VS Code 打开整个工程目录：
-
-```text
-/Users/zading/Documents/Java/java-todo-api
+```sql
+CREATE DATABASE java_todo_api;
 ```
 
-不要只打开单个 `.java` 文件，也不要直接点击普通 Java 的 `Run` 按钮来运行 `TodoApiApplication`。如果看到类似下面的命令，说明 VS Code 正在把它当成普通 Java 类运行：
+使用 PostgreSQL profile 启动：
 
-```text
-java -cp .../redhat.java/jdt_ws/... com.zading.todoapi.TodoApiApplication
+```bash
+DB_USERNAME=postgres DB_PASSWORD=your_password mvn spring-boot:run -Dspring-boot.run.profiles=postgres
 ```
 
-这种运行方式不会自动带上 Maven 里的 Spring Boot 依赖，所以会出现：
+### 测试配置
+
+测试配置文件：
 
 ```text
-SpringApplication cannot be resolved
+src/test/resources/application-test.properties
 ```
 
-推荐两种方式：
+测试环境使用 H2 内存数据库。
 
-1. 在 VS Code 终端运行：
+## 数据库迁移
 
-   ```bash
-   mvn spring-boot:run
-   ```
-
-2. 使用 VS Code 任务：
-
-   ```text
-   Terminal -> Run Task -> Run Spring Boot
-   ```
-
-如果 VS Code 仍然识别不到 Maven 依赖，可以执行：
+Flyway 迁移脚本目录：
 
 ```text
-Command Palette -> Java: Clean Java Language Server Workspace
+src/main/resources/db/migration/
 ```
 
-然后重新打开 `/Users/zading/Documents/Java/java-todo-api` 工程目录。
+当前迁移脚本：
+
+```text
+V1__create_todos_table.sql
+```
+
+JPA 不负责自动修改表结构：
+
+```properties
+spring.jpa.hibernate.ddl-auto=validate
+```
+
+数据库表结构由 Flyway 管理，JPA 只校验 Entity 模型和数据库表结构是否匹配。
+
+## 启动项目
+
+```bash
+cd /Users/zading/Documents/Java/java-todo-api
+mvn spring-boot:run
+```
+
+健康检查：
+
+```bash
+curl http://localhost:8080/hello
+```
+
+预期响应：
+
+```text
+Hello Spring Boot
+```
 
 ## 运行测试
 
@@ -182,23 +207,41 @@ Command Palette -> Java: Clean Java Language Server Workspace
 mvn test
 ```
 
-测试会验证：
+测试覆盖：
 
-- `/hello`
-- 新增 Todo
-- 查询 Todo
+- 健康检查接口
+- 创建 Todo
+- 查询 Todo 列表
 - 修改 Todo
 - 切换完成状态
 - 删除 Todo
 - 按完成状态筛选
 - 按标题关键词搜索
-- 响应里包含 `createdAt` / `updatedAt`
-- 参数错误返回 400
-- 不存在资源返回 404
+- 参数校验错误响应
+- 资源不存在错误响应
+
+## 构建
+
+```bash
+mvn package
+```
+
+运行打包后的应用：
+
+```bash
+java -jar target/java-todo-api-1.0.0.jar
+```
+
+使用 PostgreSQL profile 运行打包后的应用：
+
+```bash
+DB_USERNAME=postgres DB_PASSWORD=your_password \
+java -jar target/java-todo-api-1.0.0.jar --spring.profiles.active=postgres
+```
 
 ## API 文档
 
-### 1. 健康/入门接口
+### 健康检查
 
 ```http
 GET /hello
@@ -210,15 +253,23 @@ GET /hello
 Hello Spring Boot
 ```
 
-### 2. 查询 Todo 列表
+### 查询 Todo 列表
 
 ```http
 GET /api/todos
 ```
 
-支持筛选：
+Query 参数：
+
+| 参数名 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `completed` | boolean | 否 | 按完成状态筛选 |
+| `keyword` | string | 否 | 按标题关键词搜索 |
+
+示例：
 
 ```http
+GET /api/todos
 GET /api/todos?completed=true
 GET /api/todos?completed=false
 GET /api/todos?keyword=java
@@ -231,21 +282,15 @@ GET /api/todos?completed=false&keyword=java
 [
   {
     "id": 1,
-    "title": "学习 Spring Boot API",
+    "title": "实现 Todo API",
     "completed": false,
-    "createdAt": "2026-07-06T17:00:00.123456",
-    "updatedAt": "2026-07-06T17:00:00.123456"
+    "createdAt": "2026-07-08T10:00:00.123456",
+    "updatedAt": "2026-07-08T10:00:00.123456"
   }
 ]
 ```
 
-curl：
-
-```bash
-curl http://localhost:8080/api/todos
-```
-
-### 3. 查询单个 Todo
+### 查询单个 Todo
 
 ```http
 GET /api/todos/{id}
@@ -257,7 +302,7 @@ GET /api/todos/{id}
 curl http://localhost:8080/api/todos/1
 ```
 
-### 4. 新增 Todo
+### 创建 Todo
 
 ```http
 POST /api/todos
@@ -268,107 +313,87 @@ Content-Type: application/json
 
 ```json
 {
-  "title": "学习 POST 接口"
+  "title": "实现 Todo API"
 }
 ```
 
-curl：
+示例：
 
 ```bash
 curl -X POST http://localhost:8080/api/todos \
   -H "Content-Type: application/json" \
-  -d '{"title":"学习 POST 接口"}'
+  -d '{"title":"实现 Todo API"}'
 ```
 
-成功响应状态码：
+成功状态码：
 
 ```text
 201 Created
 ```
 
-### 5. 修改 Todo
+### 修改 Todo
 
 ```http
 PATCH /api/todos/{id}
 Content-Type: application/json
 ```
 
-请求体可以只传一个字段：
+请求体：
 
 ```json
 {
-  "title": "新的标题"
-}
-```
-
-也可以同时传：
-
-```json
-{
-  "title": "新的标题",
+  "title": "更新 API 文档",
   "completed": true
 }
 ```
 
-curl：
+两个字段都可以单独传。
+
+示例：
 
 ```bash
 curl -X PATCH http://localhost:8080/api/todos/1 \
   -H "Content-Type: application/json" \
-  -d '{"title":"新的标题","completed":true}'
+  -d '{"title":"更新 API 文档","completed":true}'
 ```
 
-### 6. 切换完成状态
+### 切换完成状态
 
 ```http
 PATCH /api/todos/{id}/toggle
 ```
 
-curl：
+示例：
 
 ```bash
 curl -X PATCH http://localhost:8080/api/todos/1/toggle
 ```
 
-### 7. 删除 Todo
+### 删除 Todo
 
 ```http
 DELETE /api/todos/{id}
 ```
 
-curl：
+示例：
 
 ```bash
 curl -X DELETE http://localhost:8080/api/todos/1
 ```
 
-成功响应状态码：
+成功状态码：
 
 ```text
 204 No Content
 ```
 
-## 错误响应示例
+## 错误响应
 
-### 标题为空
-
-```http
-POST /api/todos
-```
-
-请求体：
+参数校验错误示例：
 
 ```json
 {
-  "title": ""
-}
-```
-
-响应：
-
-```json
-{
-  "timestamp": "2026-07-06T...",
+  "timestamp": "2026-07-08T10:00:00Z",
   "status": 400,
   "error": "Bad Request",
   "message": "title: 任务标题不能为空",
@@ -376,17 +401,11 @@ POST /api/todos
 }
 ```
 
-### Todo 不存在
-
-```http
-GET /api/todos/999
-```
-
-响应：
+资源不存在示例：
 
 ```json
 {
-  "timestamp": "2026-07-06T...",
+  "timestamp": "2026-07-08T10:00:00Z",
   "status": 404,
   "error": "Not Found",
   "message": "Todo 不存在，id = 999",
@@ -394,52 +413,13 @@ GET /api/todos/999
 }
 ```
 
-## 前端调用示例
+## 文档
 
-```js
-const res = await fetch('http://localhost:8080/api/todos')
-const todos = await res.json()
-console.log(todos)
-```
+学习文档位于 `docs/`：
 
-新增 Todo：
-
-```js
-await fetch('http://localhost:8080/api/todos', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    title: '从前端创建 Todo'
-  })
-})
-```
-
-## 这一周你要重点看懂
-
-- `@SpringBootApplication`
-- `@RestController`
-- `@RequestMapping`
-- `@GetMapping`
-- `@PostMapping`
-- `@PatchMapping`
-- `@DeleteMapping`
-- `@RequestBody`
-- `@PathVariable`
-- `@Service`
-- `@Repository`
-- `@RestControllerAdvice`
-- `@Entity`
-- `@Table`
-- `@Id`
-- `@GeneratedValue`
-- `JpaRepository`
-- `@PrePersist`
-- `@PreUpdate`
-- `@RequestParam`
-- `Flyway`
-- `DTO`
-- `Mapper`
-
-先不要急着背，先把请求跑通。Spring Boot 一开始像一台自动咖啡机：按钮很多，但你先学会点“美式”，后面再拆机器。
+- [第 1 周：Java 基础和开发环境](docs/week-01-learning.md)
+- [第 2 周：面向对象、异常、集合和 Maven](docs/week-02-learning.md)
+- [第 3 周：控制台 Todo 项目和分层重构](docs/week-03-learning.md)
+- [第 4 周：Spring Boot Todo API](docs/week-04-learning.md)
+- [第 5 周：JPA 和数据库持久化](docs/week-05-learning.md)
+- [第 6 周：Profile、Flyway 和 DTO 分层](docs/week-06-learning.md)

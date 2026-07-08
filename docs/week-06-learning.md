@@ -569,3 +569,261 @@ API 给前端什么，不应该完全由数据库表决定。
 5. 为什么测试不应该假设新数据 id 一定是 1？
 
 如果这些问题能说清楚，第六周就算真正吃进去了。
+
+## 本周复盘问题参考答案
+
+### 1. 为什么不继续使用 `ddl-auto=update`？
+
+`ddl-auto=update` 会让 Hibernate 根据 Entity 自动修改数据库表结构。
+
+学习早期很方便，但真实项目里风险较高：
+
+- 表结构变化没有明确历史。
+- 团队成员的数据库状态可能不一致。
+- 生产环境自动改表不可控。
+- 很难清楚知道每次版本发布改了哪些数据库结构。
+
+所以第六周改成：
+
+```properties
+spring.jpa.hibernate.ddl-auto=validate
+```
+
+含义是：
+
+```text
+Flyway 负责建表和改表
+JPA 只负责校验 Entity 和表结构是否匹配
+```
+
+### 2. Flyway 的 `V1__create_todos_table.sql` 为什么不能随便改？
+
+因为 Flyway migration 是数据库结构的历史记录。
+
+当 `V1__create_todos_table.sql` 执行过之后，Flyway 会记录它的版本和校验值。
+
+如果你之后修改这个文件，Flyway 会认为：
+
+```text
+已经执行过的历史脚本被篡改了
+```
+
+正确做法是新增脚本：
+
+```text
+V2__add_priority_to_todos.sql
+V3__add_deleted_column_to_todos.sql
+```
+
+一句话：
+
+```text
+已经执行过的 migration 是历史，不是草稿。
+```
+
+### 3. `Todo` 和 `TodoResponse` 有什么区别？
+
+`Todo` 是 Entity，负责数据库映射。
+
+```text
+Todo -> todos 表
+```
+
+`TodoResponse` 是 DTO，负责 API 响应。
+
+```text
+TodoResponse -> 返回给前端的 JSON 结构
+```
+
+它们现在字段看起来类似，但职责不同。
+
+以后 `Todo` 可能增加内部字段，例如：
+
+```java
+private Long ownerId;
+private boolean deleted;
+private String internalNote;
+```
+
+这些字段不一定应该返回给前端。
+
+所以：
+
+```text
+Entity 管数据库
+DTO 管接口边界
+```
+
+### 4. 为什么创建时间、更新时间适合放在 Entity 生命周期方法里？
+
+`createdAt` 和 `updatedAt` 是数据自身的生命周期信息。
+
+使用：
+
+```java
+@PrePersist
+void onCreate() {
+    LocalDateTime now = LocalDateTime.now();
+    this.createdAt = now;
+    this.updatedAt = now;
+}
+```
+
+可以在第一次保存前自动设置时间。
+
+使用：
+
+```java
+@PreUpdate
+void onUpdate() {
+    this.updatedAt = LocalDateTime.now();
+}
+```
+
+可以在更新前自动刷新 `updatedAt`。
+
+这样比在每个 Service 方法里手动设置更不容易遗漏。
+
+### 5. 为什么测试不应该假设新数据 id 一定是 1？
+
+因为数据库自增 ID 不保证每次都从 1 开始。
+
+可能出现：
+
+- 前一个测试已经插入过数据。
+- 数据删除了，但自增序列没有重置。
+- 不同数据库的自增策略不同。
+- 本地数据库已经有历史数据。
+
+所以测试应该这样做：
+
+```text
+先创建 Todo
+从响应里读取真实 id
+再用这个 id 查询、修改、删除
+```
+
+测试应该验证业务行为，而不是依赖偶然的数据库状态。
+
+## 更多复盘问题
+
+1. `validate` 和 `update` 在 JPA 配置里有什么区别？
+2. Flyway 如何知道哪些 migration 已经执行过？
+3. 为什么新增字段应该写 `V2`，而不是修改 `V1`？
+4. Mapper 的作用是什么？
+5. 为什么 Controller 返回 DTO，而 Service 仍然可以返回 Entity？
+6. `createdAt` 为什么设置 `updatable = false`？
+7. `test` profile 的价值是什么？
+
+## 更多复盘问题参考答案
+
+### 1. `validate` 和 `update` 在 JPA 配置里有什么区别？
+
+`update` 会尝试根据 Entity 自动更新数据库表结构。
+
+`validate` 只校验 Entity 和数据库表是否匹配，不会改表。
+
+第六周使用：
+
+```properties
+spring.jpa.hibernate.ddl-auto=validate
+```
+
+目的是让表结构变化交给 Flyway，而不是让 Hibernate 自动处理。
+
+### 2. Flyway 如何知道哪些 migration 已经执行过？
+
+Flyway 会在数据库里创建一张历史表，通常叫：
+
+```text
+flyway_schema_history
+```
+
+这张表记录：
+
+- migration 版本
+- 文件名
+- 执行时间
+- 校验值
+- 是否成功
+
+下次启动时，Flyway 会读取这张表，判断哪些脚本已经执行过，哪些还没执行。
+
+### 3. 为什么新增字段应该写 `V2`，而不是修改 `V1`？
+
+因为 `V1` 如果已经执行过，它就是数据库历史。
+
+修改 `V1` 会导致 Flyway 校验失败。
+
+正确做法是新增：
+
+```text
+V2__add_xxx_column.sql
+```
+
+这样数据库结构变化可以按版本追踪。
+
+这就像 Git 提交历史：不要随便改已经共享出去的历史。
+
+### 4. Mapper 的作用是什么？
+
+Mapper 负责对象转换。
+
+当前项目里主要是：
+
+```text
+Todo Entity -> TodoResponse DTO
+```
+
+把转换逻辑集中到 Mapper 后，Controller 就不需要到处 `new TodoResponse(...)`。
+
+未来字段更多时，也更容易维护。
+
+### 5. 为什么 Controller 返回 DTO，而 Service 仍然可以返回 Entity？
+
+目前项目规模还小，Service 内部继续使用 Entity 可以保持业务逻辑简单。
+
+Controller 是对外接口边界，所以在 Controller 层把 Entity 转成 DTO 返回。
+
+当前边界是：
+
+```text
+内部业务层可以使用 Entity
+对外 API 返回 DTO
+```
+
+后面项目更复杂时，可以进一步让 Service 直接返回 DTO 或应用层对象。
+
+### 6. `createdAt` 为什么设置 `updatable = false`？
+
+`createdAt` 表示创建时间，创建后不应该被更新。
+
+配置：
+
+```java
+@Column(nullable = false, updatable = false)
+private LocalDateTime createdAt;
+```
+
+表示 JPA 更新记录时不更新这个字段。
+
+这样可以避免修改 Todo 时误改创建时间。
+
+### 7. `test` profile 的价值是什么？
+
+`test` profile 让测试环境拥有独立配置。
+
+当前测试环境使用：
+
+```text
+H2 内存数据库
+Flyway migration
+ddl-auto=validate
+```
+
+好处是：
+
+- 不依赖本地 PostgreSQL
+- 不污染开发数据库
+- 每次测试环境更可控
+- 更接近真实启动流程
