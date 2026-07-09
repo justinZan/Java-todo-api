@@ -1,15 +1,14 @@
 package com.zading.todoapi.repository;
 
 import com.zading.todoapi.model.Todo;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
-
 public interface TodoRepository extends JpaRepository<Todo, Long> {
-    List<Todo> findByCompleted(boolean completed, Sort sort);
+    Page<Todo> findByCompleted(boolean completed, Pageable pageable);
 
-    List<Todo> findByTitleContainingIgnoreCase(String keyword, Sort sort);
+    Page<Todo> findByTitleContainingIgnoreCase(String keyword, Pageable pageable);
 
-    List<Todo> findByCompletedAndTitleContainingIgnoreCase(boolean completed, String keyword, Sort sort);
+    Page<Todo> findByCompletedAndTitleContainingIgnoreCase(boolean completed, String keyword, Pageable pageable);
 }

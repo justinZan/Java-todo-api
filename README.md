@@ -6,6 +6,7 @@
 
 - RESTful Todo API
 - 请求 / 响应 DTO 分层
+- 分页、排序、筛选列表查询
 - 全局异常处理
 - Bean Validation 参数校验
 - Spring Data JPA 数据持久化
@@ -66,7 +67,8 @@ java-todo-api/
 │   ├── week-03-learning.md
 │   ├── week-04-learning.md
 │   ├── week-05-learning.md
-│   └── week-06-learning.md
+│   ├── week-06-learning.md
+│   └── week-07-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -82,7 +84,8 @@ java-todo-api/
     │       ├── application.properties
     │       ├── application-postgres.properties
     │       └── db/migration/
-    │           └── V1__create_todos_table.sql
+    │           ├── V1__create_todos_table.sql
+    │           └── V2__add_priority_and_due_date_to_todos.sql
     └── test/
         ├── java/com/zading/todoapi/
         └── resources/
@@ -172,6 +175,7 @@ src/main/resources/db/migration/
 
 ```text
 V1__create_todos_table.sql
+V2__add_priority_and_due_date_to_todos.sql
 ```
 
 JPA 不负责自动修改表结构：
@@ -217,6 +221,8 @@ mvn test
 - 删除 Todo
 - 按完成状态筛选
 - 按标题关键词搜索
+- 分页和排序
+- priority / dueDate 字段
 - 参数校验错误响应
 - 资源不存在错误响应
 
@@ -265,29 +271,42 @@ Query 参数：
 |---|---|---:|---|
 | `completed` | boolean | 否 | 按完成状态筛选 |
 | `keyword` | string | 否 | 按标题关键词搜索 |
+| `page` | number | 否 | 页码，从 0 开始，默认 0 |
+| `size` | number | 否 | 每页数量，默认 10，最大 100 |
+| `sort` | string | 否 | 排序规则，格式为 `字段,方向`，默认 `id,asc` |
 
 示例：
 
 ```http
 GET /api/todos
-GET /api/todos?completed=true
-GET /api/todos?completed=false
-GET /api/todos?keyword=java
-GET /api/todos?completed=false&keyword=java
+GET /api/todos?page=0&size=10
+GET /api/todos?page=0&size=10&completed=true
+GET /api/todos?page=0&size=10&keyword=java
+GET /api/todos?page=0&size=10&completed=false&keyword=java&sort=createdAt,desc
 ```
 
 响应：
 
 ```json
-[
-  {
-    "id": 1,
-    "title": "实现 Todo API",
-    "completed": false,
-    "createdAt": "2026-07-08T10:00:00.123456",
-    "updatedAt": "2026-07-08T10:00:00.123456"
-  }
-]
+{
+  "items": [
+    {
+      "id": 1,
+      "title": "实现 Todo API",
+      "completed": false,
+      "priority": "HIGH",
+      "dueDate": "2026-07-20",
+      "createdAt": "2026-07-08T10:00:00.123456",
+      "updatedAt": "2026-07-08T10:00:00.123456"
+    }
+  ],
+  "page": 0,
+  "size": 10,
+  "totalElements": 1,
+  "totalPages": 1,
+  "first": true,
+  "last": true
+}
 ```
 
 ### 查询单个 Todo
@@ -313,7 +332,9 @@ Content-Type: application/json
 
 ```json
 {
-  "title": "实现 Todo API"
+  "title": "实现 Todo API",
+  "priority": "HIGH",
+  "dueDate": "2026-07-20"
 }
 ```
 
@@ -322,7 +343,7 @@ Content-Type: application/json
 ```bash
 curl -X POST http://localhost:8080/api/todos \
   -H "Content-Type: application/json" \
-  -d '{"title":"实现 Todo API"}'
+  -d '{"title":"实现 Todo API","priority":"HIGH","dueDate":"2026-07-20"}'
 ```
 
 成功状态码：
@@ -343,7 +364,9 @@ Content-Type: application/json
 ```json
 {
   "title": "更新 API 文档",
-  "completed": true
+  "completed": true,
+  "priority": "LOW",
+  "dueDate": "2026-08-01"
 }
 ```
 
@@ -354,7 +377,7 @@ Content-Type: application/json
 ```bash
 curl -X PATCH http://localhost:8080/api/todos/1 \
   -H "Content-Type: application/json" \
-  -d '{"title":"更新 API 文档","completed":true}'
+  -d '{"title":"更新 API 文档","completed":true,"priority":"LOW","dueDate":"2026-08-01"}'
 ```
 
 ### 切换完成状态
@@ -423,3 +446,4 @@ curl -X DELETE http://localhost:8080/api/todos/1
 - [第 4 周：Spring Boot Todo API](docs/week-04-learning.md)
 - [第 5 周：JPA 和数据库持久化](docs/week-05-learning.md)
 - [第 6 周：Profile、Flyway 和 DTO 分层](docs/week-06-learning.md)
+- [第 7 周：分页、排序、参数校验和字段扩展](docs/week-07-learning.md)
