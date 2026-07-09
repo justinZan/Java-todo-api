@@ -2,6 +2,8 @@ package com.zading.todoapi.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -9,6 +11,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,6 +26,12 @@ public class Todo {
 
     @Column(nullable = false)
     private boolean completed;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TodoPriority priority = TodoPriority.MEDIUM;
+
+    private LocalDate dueDate;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -61,6 +70,22 @@ public class Todo {
 
     public void setCompleted(boolean completed) {
         this.completed = completed;
+    }
+
+    public TodoPriority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(TodoPriority priority) {
+        this.priority = priority;
+    }
+
+    public LocalDate getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(LocalDate dueDate) {
+        this.dueDate = dueDate;
     }
 
     public LocalDateTime getCreatedAt() {

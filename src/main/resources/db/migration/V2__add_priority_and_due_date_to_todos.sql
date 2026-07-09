@@ -1,0 +1,5 @@
+ALTER TABLE todos
+    ADD COLUMN priority VARCHAR(20) NOT NULL DEFAULT 'MEDIUM';
+
+ALTER TABLE todos
+    ADD COLUMN due_date DATE;
