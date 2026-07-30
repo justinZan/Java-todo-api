@@ -5,10 +5,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Optional;
+
 public interface TodoRepository extends JpaRepository<Todo, Long> {
-    Page<Todo> findByCompleted(boolean completed, Pageable pageable);
+    Page<Todo> findByUserId(Long userId, Pageable pageable);
 
-    Page<Todo> findByTitleContainingIgnoreCase(String keyword, Pageable pageable);
+    Page<Todo> findByUserIdAndCompleted(Long userId, boolean completed, Pageable pageable);
 
-    Page<Todo> findByCompletedAndTitleContainingIgnoreCase(boolean completed, String keyword, Pageable pageable);
+    Page<Todo> findByUserIdAndTitleContainingIgnoreCase(Long userId, String keyword, Pageable pageable);
+
+    Page<Todo> findByUserIdAndCompletedAndTitleContainingIgnoreCase(Long userId, boolean completed, String keyword, Pageable pageable);
+
+    Optional<Todo> findByIdAndUserId(Long id, Long userId);
+
+    boolean existsByIdAndUserId(Long id, Long userId);
 }
