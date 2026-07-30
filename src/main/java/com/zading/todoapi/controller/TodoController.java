@@ -6,6 +6,7 @@ import com.zading.todoapi.dto.TodoResponse;
 import com.zading.todoapi.dto.UpdateTodoRequest;
 import com.zading.todoapi.mapper.TodoMapper;
 import com.zading.todoapi.model.Todo;
+import com.zading.todoapi.security.AuthenticatedUser;
 import com.zading.todoapi.service.TodoService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -56,6 +58,7 @@ public class TodoController {
 
     @GetMapping
     public PageResponse<TodoResponse> getTodos(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @RequestParam(required = false) Boolean completed,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") @Min(value = 0, message = "page 不能小于 0") int page,
@@ -63,20 +66,28 @@ public class TodoController {
             @RequestParam(defaultValue = "id,asc") String sort
     ) {
         Pageable pageable = PageRequest.of(page, size, parseSort(sort));
-        Page<Todo> todos = todoService.getTodos(completed, keyword, pageable);
+        Page<Todo> todos = todoService.getTodos(currentUser.getId(), completed, keyword, pageable);
         List<TodoResponse> items = todoMapper.toResponseList(todos);
 
         return PageResponse.from(todos, items);
     }
 
     @GetMapping("/{id}")
-    public TodoResponse getTodo(@PathVariable Long id) {
-        return todoMapper.toResponse(todoService.getTodo(id));
+    public TodoResponse getTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
+        return todoMapper.toResponse(todoService.getTodo(currentUser.getId(), id));
     }
 
     @PostMapping
-    public ResponseEntity<TodoResponse> createTodo(@Valid @RequestBody CreateTodoRequest request) {
-        Todo createdTodo = todoService.addTodo(request.getTitle(), request.getPriority(), request.getDueDate());
+    public ResponseEntity<TodoResponse> createTodo(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @Valid @RequestBody CreateTodoRequest request
+    ) {
+        Todo createdTodo = todoService.addTodo(
+                currentUser.getId(),
+                request.getTitle(),
+                request.getPriority(),
+                request.getDueDate()
+        );
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
@@ -87,8 +98,13 @@ public class TodoController {
     }
 
     @PatchMapping("/{id}")
-    public TodoResponse updateTodo(@PathVariable Long id, @Valid @RequestBody UpdateTodoRequest request) {
+    public TodoResponse updateTodo(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateTodoRequest request
+    ) {
         return todoMapper.toResponse(todoService.updateTodo(
+                currentUser.getId(),
                 id,
                 request.getTitle(),
                 request.getCompleted(),
@@ -98,13 +114,13 @@ public class TodoController {
     }
 
     @PatchMapping("/{id}/toggle")
-    public TodoResponse toggleTodo(@PathVariable Long id) {
-        return todoMapper.toResponse(todoService.toggleTodo(id));
+    public TodoResponse toggleTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
+        return todoMapper.toResponse(todoService.toggleTodo(currentUser.getId(), id));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTodo(@PathVariable Long id) {
-        todoService.deleteTodo(id);
+    public ResponseEntity<Void> deleteTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
+        todoService.deleteTodo(currentUser.getId(), id);
         return ResponseEntity.noContent().build();
     }
 

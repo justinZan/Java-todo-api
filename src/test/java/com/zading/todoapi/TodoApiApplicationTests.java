@@ -3,6 +3,7 @@ package com.zading.todoapi;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zading.todoapi.repository.TodoRepository;
+import com.zading.todoapi.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,9 +41,13 @@ class TodoApiApplicationTests {
     @Autowired
     private TodoRepository todoRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @BeforeEach
     void setUp() {
         todoRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test
@@ -54,6 +59,7 @@ class TodoApiApplicationTests {
 
     @Test
     void shouldCreateListUpdateToggleAndDeleteTodo() throws Exception {
+        String token = registerAndLogin("zading", "123456");
         String createBody = objectMapper.writeValueAsString(Map.of(
                 "title", "学习 Spring Boot API",
                 "priority", "HIGH",
@@ -61,6 +67,7 @@ class TodoApiApplicationTests {
         ));
 
         MvcResult createResult = mockMvc.perform(post("/api/todos")
+                        .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody))
                 .andExpect(status().isCreated())
@@ -76,7 +83,8 @@ class TodoApiApplicationTests {
 
         Long todoId = readId(createResult);
 
-        mockMvc.perform(get("/api/todos"))
+        mockMvc.perform(get("/api/todos")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(1)))
                 .andExpect(jsonPath("$.page").value(0))
@@ -94,6 +102,7 @@ class TodoApiApplicationTests {
         ));
 
         mockMvc.perform(patch("/api/todos/{id}", todoId)
+                        .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateBody))
                 .andExpect(status().isOk())
@@ -104,14 +113,17 @@ class TodoApiApplicationTests {
                 .andExpect(jsonPath("$.createdAt").exists())
                 .andExpect(jsonPath("$.updatedAt").exists());
 
-        mockMvc.perform(patch("/api/todos/{id}/toggle", todoId))
+        mockMvc.perform(patch("/api/todos/{id}/toggle", todoId)
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.completed").value(false));
 
-        mockMvc.perform(delete("/api/todos/{id}", todoId))
+        mockMvc.perform(delete("/api/todos/{id}", todoId)
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/todos"))
+        mockMvc.perform(get("/api/todos")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(0)))
                 .andExpect(jsonPath("$.totalElements").value(0));
@@ -119,20 +131,24 @@ class TodoApiApplicationTests {
 
     @Test
     void shouldFilterTodosByCompletedAndKeyword() throws Exception {
-        Long javaTodoId = createTodo("学习 Java JPA");
+        String token = registerAndLogin("zading", "123456");
+        Long javaTodoId = createTodo(token, "学习 Java JPA");
 
-        createTodo("学习前端工程化");
+        createTodo(token, "学习前端工程化");
 
-        mockMvc.perform(patch("/api/todos/{id}/toggle", javaTodoId))
+        mockMvc.perform(patch("/api/todos/{id}/toggle", javaTodoId)
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.completed").value(true));
 
-        mockMvc.perform(get("/api/todos?completed=true"))
+        mockMvc.perform(get("/api/todos?completed=true")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(1)))
                 .andExpect(jsonPath("$.items[0].title").value("学习 Java JPA"));
 
-        mockMvc.perform(get("/api/todos?keyword=前端"))
+        mockMvc.perform(get("/api/todos?keyword=前端")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(1)))
                 .andExpect(jsonPath("$.items[0].title").value("学习前端工程化"));
@@ -140,11 +156,13 @@ class TodoApiApplicationTests {
 
     @Test
     void shouldPageAndSortTodos() throws Exception {
-        createTodo("Alpha");
-        createTodo("Charlie");
-        createTodo("Bravo");
+        String token = registerAndLogin("zading", "123456");
+        createTodo(token, "Alpha");
+        createTodo(token, "Charlie");
+        createTodo(token, "Bravo");
 
-        mockMvc.perform(get("/api/todos?page=0&size=2&sort=title,desc"))
+        mockMvc.perform(get("/api/todos?page=0&size=2&sort=title,desc")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(2)))
                 .andExpect(jsonPath("$.items[0].title").value("Charlie"))
@@ -156,7 +174,8 @@ class TodoApiApplicationTests {
                 .andExpect(jsonPath("$.first").value(true))
                 .andExpect(jsonPath("$.last").value(false));
 
-        mockMvc.perform(get("/api/todos?page=1&size=2&sort=title,desc"))
+        mockMvc.perform(get("/api/todos?page=1&size=2&sort=title,desc")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(1)))
                 .andExpect(jsonPath("$.items[0].title").value("Alpha"))
@@ -166,29 +185,40 @@ class TodoApiApplicationTests {
 
     @Test
     void shouldReturnBadRequestWhenPageParametersAreInvalid() throws Exception {
-        mockMvc.perform(get("/api/todos?page=-1"))
+        String token = registerAndLogin("zading", "123456");
+
+        mockMvc.perform(get("/api/todos?page=-1")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("page: page 不能小于 0"));
 
-        mockMvc.perform(get("/api/todos?size=101"))
+        mockMvc.perform(get("/api/todos?size=101")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("size: size 不能大于 100"));
     }
 
     @Test
     void shouldReturnBadRequestWhenSortIsInvalid() throws Exception {
-        mockMvc.perform(get("/api/todos?sort=unknown,desc"))
+        String token = registerAndLogin("zading", "123456");
+
+        mockMvc.perform(get("/api/todos?sort=unknown,desc")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("不支持的排序字段: unknown"));
 
-        mockMvc.perform(get("/api/todos?sort=createdAt,sideways"))
+        mockMvc.perform(get("/api/todos?sort=createdAt,sideways")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("不支持的排序方向: sideways"));
     }
 
     @Test
     void shouldReturnDefaultPriorityWhenPriorityIsNotProvided() throws Exception {
+        String token = registerAndLogin("zading", "123456");
+
         MvcResult result = mockMvc.perform(post("/api/todos")
+                .header("Authorization", bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("title", "默认优先级"))))
         .andExpect(status().isCreated())
@@ -198,7 +228,8 @@ class TodoApiApplicationTests {
 
         Long todoId = readId(result);
 
-        mockMvc.perform(get("/api/todos/{id}", todoId))
+        mockMvc.perform(get("/api/todos/{id}", todoId)
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.priority").value("MEDIUM"))
                 .andExpect(jsonPath("$.dueDate").value(nullValue()));
@@ -206,9 +237,11 @@ class TodoApiApplicationTests {
 
     @Test
     void shouldReturnBadRequestWhenTitleIsBlank() throws Exception {
+        String token = registerAndLogin("zading", "123456");
         String body = objectMapper.writeValueAsString(Map.of("title", " "));
 
         mockMvc.perform(post("/api/todos")
+                        .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -217,19 +250,131 @@ class TodoApiApplicationTests {
 
     @Test
     void shouldReturnNotFoundWhenTodoDoesNotExist() throws Exception {
-        mockMvc.perform(get("/api/todos/999"))
+        String token = registerAndLogin("zading", "123456");
+
+        mockMvc.perform(get("/api/todos/999")
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Todo 不存在，id = 999"));
     }
 
-    private Long createTodo(String title) throws Exception {
+    @Test
+    void shouldRegisterAndLoginUser() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "username", "zading",
+                                "password", "123456"
+                        ))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.username").value("zading"))
+                .andExpect(jsonPath("$.createdAt").exists());
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "username", "zading",
+                                "password", "123456"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"));
+    }
+
+    @Test
+    void shouldRejectDuplicateUsernameAndWrongPassword() throws Exception {
+        register("zading", "123456")
+                .andExpect(status().isCreated());
+
+        register("zading", "abcdef")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("用户名已存在"));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "username", "zading",
+                                "password", "wrong-password"
+                        ))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("用户名或密码错误"));
+    }
+
+    @Test
+    void shouldRequireLoginForTodoApis() throws Exception {
+        mockMvc.perform(get("/api/todos"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("请先登录"));
+    }
+
+    @Test
+    void shouldOnlyReturnCurrentUsersTodos() throws Exception {
+        String userAToken = registerAndLogin("user-a", "123456");
+        String userBToken = registerAndLogin("user-b", "123456");
+
+        Long userATodoId = createTodo(userAToken, "用户 A 的任务");
+        createTodo(userBToken, "用户 B 的任务");
+
+        mockMvc.perform(get("/api/todos")
+                        .header("Authorization", bearer(userAToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].title").value("用户 A 的任务"));
+
+        mockMvc.perform(get("/api/todos")
+                        .header("Authorization", bearer(userBToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].title").value("用户 B 的任务"));
+
+        mockMvc.perform(get("/api/todos/{id}", userATodoId)
+                        .header("Authorization", bearer(userBToken)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Todo 不存在，id = " + userATodoId));
+    }
+
+    private Long createTodo(String token, String title) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/todos")
+                        .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("title", title))))
                 .andExpect(status().isCreated())
                 .andReturn();
 
         return readId(result);
+    }
+
+    private String registerAndLogin(String username, String password) throws Exception {
+        register(username, password)
+                .andExpect(status().isCreated());
+
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "username", username,
+                                "password", password
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists())
+                .andReturn();
+
+        return objectMapper.readTree(loginResult.getResponse().getContentAsString())
+                .get("token")
+                .asText();
+    }
+
+    private org.springframework.test.web.servlet.ResultActions register(String username, String password) throws Exception {
+        return mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                        "username", username,
+                        "password", password
+                ))));
+    }
+
+    private String bearer(String token) {
+        return "Bearer " + token;
     }
 
     private Long readId(MvcResult result) throws Exception {
