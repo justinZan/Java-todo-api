@@ -334,6 +334,14 @@ class TodoApiApplicationTests {
                 .andExpect(jsonPath("$.message").value("Todo 不存在，id = " + userATodoId));
     }
 
+    @Test
+    void shouldExposeOpenApiDocsWithoutLogin() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.openapi").exists())
+                .andExpect(jsonPath("$.info.title").value("Java Todo API"));
+    }
+
     private Long createTodo(String token, String title) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/todos")
                         .header("Authorization", bearer(token))
