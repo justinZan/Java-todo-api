@@ -16,6 +16,9 @@
 - Flyway 数据库迁移
 - 默认使用 H2 本地数据库
 - 支持 PostgreSQL profile
+- 提供 Docker Compose PostgreSQL 配置
+- Swagger / OpenAPI 接口文档
+- 请求日志记录
 - MockMvc 接口测试
 
 ## 技术栈
@@ -27,9 +30,11 @@
 - Spring Validation
 - Spring Security
 - Spring Data JPA
+- Springdoc OpenAPI
 - Flyway
 - H2 Database
 - PostgreSQL Driver
+- Docker Compose（可选）
 - JUnit 5 / MockMvc
 
 ## 架构说明
@@ -51,9 +56,11 @@ Entity
 
 ```text
 com.zading.todoapi
+├── config       工程配置，例如 OpenAPI 配置
 ├── controller   HTTP 接口入口
 ├── dto          请求 / 响应对象
 ├── exception    自定义异常和全局异常处理
+├── logging      请求日志过滤器
 ├── mapper       Entity 到 DTO 的转换
 ├── model        JPA Entity
 ├── repository   Spring Data JPA Repository
@@ -65,6 +72,8 @@ com.zading.todoapi
 
 ```text
 java-todo-api/
+├── .env.example
+├── docker-compose.yml
 ├── pom.xml
 ├── README.md
 ├── docs/
@@ -75,14 +84,17 @@ java-todo-api/
 │   ├── week-05-learning.md
 │   ├── week-06-learning.md
 │   ├── week-07-learning.md
-│   └── week-08-learning.md
+│   ├── week-08-learning.md
+│   └── week-09-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
     │   │   ├── TodoApiApplication.java
+    │   │   ├── config/
     │   │   ├── controller/
     │   │   ├── dto/
     │   │   ├── exception/
+    │   │   ├── logging/
     │   │   ├── mapper/
     │   │   ├── model/
     │   │   ├── repository/
@@ -107,6 +119,8 @@ java-todo-api/
 - Maven 3.9+
 
 PostgreSQL 是可选依赖。默认 profile 使用 H2，因此本地没有安装 PostgreSQL 也可以直接运行。
+
+Docker 也是可选工具。当前仓库提供了 `docker-compose.yml`，但不要求本机已经安装 Docker。
 
 ## 配置说明
 
@@ -162,6 +176,19 @@ CREATE DATABASE java_todo_api;
 DB_USERNAME=postgres DB_PASSWORD=your_password mvn spring-boot:run -Dspring-boot.run.profiles=postgres
 ```
 
+如果本机以后安装了 Docker，可以使用仓库内置的 Compose 配置启动 PostgreSQL：
+
+```bash
+cp .env.example .env
+docker compose up -d postgres
+```
+
+然后启动 PostgreSQL profile：
+
+```bash
+DB_USERNAME=postgres DB_PASSWORD=postgres mvn spring-boot:run -Dspring-boot.run.profiles=postgres
+```
+
 ### 测试配置
 
 测试配置文件：
@@ -186,6 +213,34 @@ app.jwt.expiration-minutes=${JWT_EXPIRATION_MINUTES:120}
 ```bash
 JWT_SECRET=your-strong-secret
 JWT_EXPIRATION_MINUTES=120
+```
+
+### OpenAPI 配置
+
+接口文档地址：
+
+```text
+http://localhost:8080/swagger-ui.html
+```
+
+OpenAPI JSON 地址：
+
+```text
+http://localhost:8080/v3/api-docs
+```
+
+### 请求日志配置
+
+默认开启请求日志：
+
+```properties
+app.request-logging.enabled=true
+```
+
+日志会记录：
+
+```text
+HTTP GET /api/todos -> 200 (12 ms)
 ```
 
 ## 数据库迁移
@@ -231,6 +286,12 @@ curl http://localhost:8080/hello
 Hello Spring Boot
 ```
 
+接口文档：
+
+```text
+http://localhost:8080/swagger-ui.html
+```
+
 ## 运行测试
 
 ```bash
@@ -255,6 +316,7 @@ mvn test
 - 分页和排序
 - priority / dueDate 字段
 - Todo 数据按用户隔离
+- OpenAPI 文档可访问
 - 参数校验错误响应
 - 资源不存在错误响应
 
@@ -344,7 +406,7 @@ Content-Type: application/json
 
 ### 认证说明
 
-除 `/hello`、`/api/auth/register`、`/api/auth/login` 和 `/h2-console/**` 外，其他接口都需要登录。
+除 `/hello`、`/api/auth/register`、`/api/auth/login`、`/h2-console/**`、`/v3/api-docs/**` 和 `/swagger-ui/**` 外，其他接口都需要登录。
 
 访问 Todo API 时需要携带：
 
@@ -563,3 +625,4 @@ curl -X DELETE http://localhost:8080/api/todos/1 \
 - [第 6 周：Profile、Flyway 和 DTO 分层](docs/week-06-learning.md)
 - [第 7 周：分页、排序、参数校验和字段扩展](docs/week-07-learning.md)
 - [第 8 周：用户注册、登录认证、JWT 和 Todo 数据隔离](docs/week-08-learning.md)
+- [第 9 周：Docker Compose、PostgreSQL、OpenAPI 和请求日志](docs/week-09-learning.md)
