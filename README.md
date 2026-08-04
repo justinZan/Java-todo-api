@@ -19,7 +19,8 @@
 - 提供 Docker Compose PostgreSQL 配置
 - Swagger / OpenAPI 接口文档
 - 请求日志记录
-- MockMvc 接口测试
+- 按功能拆分的 MockMvc 接口测试
+- GitHub Actions CI 配置
 
 ## 技术栈
 
@@ -35,6 +36,7 @@
 - H2 Database
 - PostgreSQL Driver
 - Docker Compose（可选）
+- GitHub Actions（可选）
 - JUnit 5 / MockMvc
 
 ## 架构说明
@@ -73,6 +75,9 @@ com.zading.todoapi
 ```text
 java-todo-api/
 ├── .env.example
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── docker-compose.yml
 ├── pom.xml
 ├── README.md
@@ -85,7 +90,8 @@ java-todo-api/
 │   ├── week-06-learning.md
 │   ├── week-07-learning.md
 │   ├── week-08-learning.md
-│   └── week-09-learning.md
+│   ├── week-09-learning.md
+│   └── week-10-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -109,6 +115,11 @@ java-todo-api/
     │           └── V3__create_users_and_link_todos.sql
     └── test/
         ├── java/com/zading/todoapi/
+        │   ├── ApplicationSmokeTests.java
+        │   ├── AuthApiTests.java
+        │   ├── OpenApiTests.java
+        │   ├── TodoApiTests.java
+        │   └── support/
         └── resources/
             └── application-test.properties
 ```
@@ -298,6 +309,20 @@ http://localhost:8080/swagger-ui.html
 mvn test
 ```
 
+测试结构：
+
+```text
+src/test/java/com/zading/todoapi/
+├── ApplicationSmokeTests.java   应用冒烟测试
+├── AuthApiTests.java            注册 / 登录接口测试
+├── OpenApiTests.java            OpenAPI 文档测试
+├── TodoApiTests.java            Todo 业务接口测试
+└── support/
+    ├── AbstractApiTest.java     测试公共配置和数据清理
+    ├── AuthTestClient.java      认证接口测试辅助类
+    └── TodoTestClient.java      Todo 接口测试辅助类
+```
+
 测试覆盖：
 
 - 健康检查接口
@@ -319,6 +344,23 @@ mvn test
 - OpenAPI 文档可访问
 - 参数校验错误响应
 - 资源不存在错误响应
+
+## CI
+
+仓库提供 GitHub Actions 配置：
+
+```text
+.github/workflows/ci.yml
+```
+
+当前 CI 会在 `main` 分支的 push 和 pull request 上执行：
+
+```text
+mvn test
+mvn package -DskipTests
+```
+
+CI 配置不会在本地自动执行；只有代码推送到 GitHub 并启用 Actions 后才会运行。
 
 ## 构建
 
@@ -626,3 +668,4 @@ curl -X DELETE http://localhost:8080/api/todos/1 \
 - [第 7 周：分页、排序、参数校验和字段扩展](docs/week-07-learning.md)
 - [第 8 周：用户注册、登录认证、JWT 和 Todo 数据隔离](docs/week-08-learning.md)
 - [第 9 周：Docker Compose、PostgreSQL、OpenAPI 和请求日志](docs/week-09-learning.md)
+- [第 10 周：测试体系重构、集成测试思维和 CI 准备](docs/week-10-learning.md)
