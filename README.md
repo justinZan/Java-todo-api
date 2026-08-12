@@ -8,6 +8,8 @@
 - 用户注册和登录
 - JWT Token 鉴权
 - Todo 数据按用户隔离
+- Todo 软删除和恢复
+- completedAt / deletedAt 生命周期字段
 - 请求 / 响应 DTO 分层
 - 分页、排序、筛选列表查询
 - 全局异常处理
@@ -91,7 +93,8 @@ java-todo-api/
 │   ├── week-07-learning.md
 │   ├── week-08-learning.md
 │   ├── week-09-learning.md
-│   └── week-10-learning.md
+│   ├── week-10-learning.md
+│   └── week-11-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -112,7 +115,8 @@ java-todo-api/
     │       └── db/migration/
     │           ├── V1__create_todos_table.sql
     │           ├── V2__add_priority_and_due_date_to_todos.sql
-    │           └── V3__create_users_and_link_todos.sql
+    │           ├── V3__create_users_and_link_todos.sql
+    │           └── V4__add_todo_lifecycle_fields.sql
     └── test/
         ├── java/com/zading/todoapi/
         │   ├── ApplicationSmokeTests.java
@@ -268,6 +272,7 @@ src/main/resources/db/migration/
 V1__create_todos_table.sql
 V2__add_priority_and_due_date_to_todos.sql
 V3__create_users_and_link_todos.sql
+V4__add_todo_lifecycle_fields.sql
 ```
 
 JPA 不负责自动修改表结构：
@@ -336,10 +341,13 @@ src/test/java/com/zading/todoapi/
 - 修改 Todo
 - 切换完成状态
 - 删除 Todo
+- 恢复软删除 Todo
 - 按完成状态筛选
 - 按标题关键词搜索
 - 分页和排序
 - priority / dueDate 字段
+- completedAt / deletedAt 生命周期字段
+- 软删除后默认查询不可见
 - Todo 数据按用户隔离
 - OpenAPI 文档可访问
 - 参数校验错误响应
@@ -492,8 +500,11 @@ GET /api/todos?page=0&size=10&completed=false&keyword=java&sort=createdAt,desc
       "id": 1,
       "title": "实现 Todo API",
       "completed": false,
+      "deleted": false,
       "priority": "HIGH",
       "dueDate": "2026-07-20",
+      "completedAt": null,
+      "deletedAt": null,
       "createdAt": "2026-07-08T10:00:00.123456",
       "updatedAt": "2026-07-08T10:00:00.123456"
     }
@@ -598,6 +609,13 @@ curl -X PATCH http://localhost:8080/api/todos/1/toggle \
   -H "Authorization: Bearer <token>"
 ```
 
+完成状态规则：
+
+```text
+未完成 -> 完成：completed = true，completedAt 写入当前时间
+完成 -> 未完成：completed = false，completedAt 清空为 null
+```
+
 ### 删除 Todo
 
 ```http
@@ -616,6 +634,44 @@ curl -X DELETE http://localhost:8080/api/todos/1 \
 
 ```text
 204 No Content
+```
+
+删除行为说明：
+
+```text
+当前删除是软删除：数据库记录不会物理删除，而是设置 deleted = true，并写入 deletedAt。
+普通查询默认只返回 deleted = false 的 Todo。
+```
+
+### 恢复 Todo
+
+```http
+PATCH /api/todos/{id}/restore
+Authorization: Bearer <token>
+```
+
+示例：
+
+```bash
+curl -X PATCH http://localhost:8080/api/todos/1/restore \
+  -H "Authorization: Bearer <token>"
+```
+
+响应：
+
+```json
+{
+  "id": 1,
+  "title": "实现 Todo API",
+  "completed": false,
+  "deleted": false,
+  "priority": "HIGH",
+  "dueDate": "2026-07-20",
+  "completedAt": null,
+  "deletedAt": null,
+  "createdAt": "2026-07-08T10:00:00.123456",
+  "updatedAt": "2026-07-08T10:05:00.123456"
+}
 ```
 
 ## 错误响应
@@ -669,3 +725,4 @@ curl -X DELETE http://localhost:8080/api/todos/1 \
 - [第 8 周：用户注册、登录认证、JWT 和 Todo 数据隔离](docs/week-08-learning.md)
 - [第 9 周：Docker Compose、PostgreSQL、OpenAPI 和请求日志](docs/week-09-learning.md)
 - [第 10 周：测试体系重构、集成测试思维和 CI 准备](docs/week-10-learning.md)
+- [第 11 周：软删除、恢复接口和 Todo 生命周期](docs/week-11-learning.md)

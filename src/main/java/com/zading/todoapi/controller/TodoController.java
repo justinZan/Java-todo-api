@@ -42,8 +42,11 @@ public class TodoController {
             "id",
             "title",
             "completed",
+            "deleted",
             "priority",
             "dueDate",
+            "completedAt",
+            "deletedAt",
             "createdAt",
             "updatedAt"
     );
@@ -116,6 +119,11 @@ public class TodoController {
     @PatchMapping("/{id}/toggle")
     public TodoResponse toggleTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
         return todoMapper.toResponse(todoService.toggleTodo(currentUser.getId(), id));
+    }
+
+    @PatchMapping("/{id}/restore")
+    public TodoResponse restoreTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
+        return todoMapper.toResponse(todoService.restoreTodo(currentUser.getId(), id));
     }
 
     @DeleteMapping("/{id}")

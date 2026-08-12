@@ -30,6 +30,9 @@ public class Todo {
     @Column(nullable = false)
     private boolean completed;
 
+    @Column(nullable = false)
+    private boolean deleted;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private AppUser user;
@@ -39,6 +42,10 @@ public class Todo {
     private TodoPriority priority = TodoPriority.MEDIUM;
 
     private LocalDate dueDate;
+
+    private LocalDateTime completedAt;
+
+    private LocalDateTime deletedAt;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -79,6 +86,14 @@ public class Todo {
         this.completed = completed;
     }
 
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
+    }
+
     public AppUser getUser() {
         return user;
     }
@@ -101,6 +116,22 @@ public class Todo {
 
     public void setDueDate(LocalDate dueDate) {
         this.dueDate = dueDate;
+    }
+
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public LocalDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
     }
 
     public LocalDateTime getCreatedAt() {

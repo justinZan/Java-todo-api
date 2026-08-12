@@ -1,0 +1,8 @@
+ALTER TABLE todos
+    ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE todos
+    ADD COLUMN completed_at TIMESTAMP;
+
+ALTER TABLE todos
+    ADD COLUMN deleted_at TIMESTAMP;
