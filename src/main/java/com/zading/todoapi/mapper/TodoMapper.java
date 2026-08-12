@@ -14,8 +14,11 @@ public class TodoMapper {
                 todo.getId(),
                 todo.getTitle(),
                 todo.isCompleted(),
+                todo.isDeleted(),
                 todo.getPriority(),
                 todo.getDueDate(),
+                todo.getCompletedAt(),
+                todo.getDeletedAt(),
                 todo.getCreatedAt(),
                 todo.getUpdatedAt()
         );

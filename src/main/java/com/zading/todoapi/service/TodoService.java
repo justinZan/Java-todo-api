@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 public class TodoService {
@@ -26,22 +27,22 @@ public class TodoService {
         String normalizedKeyword = normalizeKeyword(keyword);
 
         if (completed != null && normalizedKeyword != null) {
-            return todoRepository.findByUserIdAndCompletedAndTitleContainingIgnoreCase(userId, completed, normalizedKeyword, pageable);
+            return todoRepository.findByUserIdAndCompletedAndTitleContainingIgnoreCaseAndDeletedFalse(userId, completed, normalizedKeyword, pageable);
         }
 
         if (completed != null) {
-            return todoRepository.findByUserIdAndCompleted(userId, completed, pageable);
+            return todoRepository.findByUserIdAndCompletedAndDeletedFalse(userId, completed, pageable);
         }
 
         if (normalizedKeyword != null) {
-            return todoRepository.findByUserIdAndTitleContainingIgnoreCase(userId, normalizedKeyword, pageable);
+            return todoRepository.findByUserIdAndTitleContainingIgnoreCaseAndDeletedFalse(userId, normalizedKeyword, pageable);
         }
 
-        return todoRepository.findByUserId(userId, pageable);
+        return todoRepository.findByUserIdAndDeletedFalse(userId, pageable);
     }
 
     public Todo getTodo(Long userId, Long id) {
-        return todoRepository.findByIdAndUserId(id, userId)
+        return todoRepository.findByIdAndUserIdAndDeletedFalse(id, userId)
                 .orElseThrow(() -> new TodoNotFoundException(id));
     }
 
@@ -64,7 +65,7 @@ public class TodoService {
         }
 
         if (completed != null) {
-            todo.setCompleted(completed);
+            applyCompleted(todo, completed);
         }
 
         if (priority != null) {
@@ -80,16 +81,26 @@ public class TodoService {
 
     public Todo toggleTodo(Long userId, Long id) {
         Todo todo = getTodo(userId, id);
-        todo.setCompleted(!todo.isCompleted());
+        applyCompleted(todo, !todo.isCompleted());
         return todoRepository.save(todo);
     }
 
     public void deleteTodo(Long userId, Long id) {
-        if (!todoRepository.existsByIdAndUserId(id, userId)) {
-            throw new TodoNotFoundException(id);
-        }
+        Todo todo = getTodo(userId, id);
+        todo.setDeleted(true);
+        todo.setDeletedAt(LocalDateTime.now());
 
-        todoRepository.deleteById(id);
+        todoRepository.save(todo);
+    }
+
+    public Todo restoreTodo(Long userId, Long id) {
+        Todo todo = todoRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new TodoNotFoundException(id));
+
+        todo.setDeleted(false);
+        todo.setDeletedAt(null);
+
+        return todoRepository.save(todo);
     }
 
     private String normalizeTitle(String title) {
@@ -114,5 +125,15 @@ public class TodoService {
         }
 
         return priority;
+    }
+
+    private void applyCompleted(Todo todo, boolean completed) {
+        todo.setCompleted(completed);
+
+        if (completed) {
+            todo.setCompletedAt(LocalDateTime.now());
+        } else {
+            todo.setCompletedAt(null);
+        }
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,8 +32,11 @@ class TodoApiTests extends AbstractApiTest {
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.title").value("学习 Spring Boot API"))
                 .andExpect(jsonPath("$.completed").value(false))
+                .andExpect(jsonPath("$.deleted").value(false))
                 .andExpect(jsonPath("$.priority").value("HIGH"))
                 .andExpect(jsonPath("$.dueDate").value("2026-07-20"))
+                .andExpect(jsonPath("$.completedAt").value(nullValue()))
+                .andExpect(jsonPath("$.deletedAt").value(nullValue()))
                 .andExpect(jsonPath("$.createdAt").exists())
                 .andExpect(jsonPath("$.updatedAt").exists())
                 .andReturn();
@@ -62,6 +66,7 @@ class TodoApiTests extends AbstractApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("学习 REST API"))
                 .andExpect(jsonPath("$.completed").value(true))
+                .andExpect(jsonPath("$.completedAt").value(notNullValue()))
                 .andExpect(jsonPath("$.priority").value("LOW"))
                 .andExpect(jsonPath("$.dueDate").value("2026-08-01"))
                 .andExpect(jsonPath("$.createdAt").exists())
@@ -70,7 +75,8 @@ class TodoApiTests extends AbstractApiTest {
         mockMvc.perform(patch("/api/todos/{id}/toggle", todoId)
                         .header("Authorization", authClient.bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.completed").value(false));
+                .andExpect(jsonPath("$.completed").value(false))
+                .andExpect(jsonPath("$.completedAt").value(nullValue()));
 
         mockMvc.perform(delete("/api/todos/{id}", todoId)
                         .header("Authorization", authClient.bearer(token)))
@@ -81,6 +87,11 @@ class TodoApiTests extends AbstractApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(0)))
                 .andExpect(jsonPath("$.totalElements").value(0));
+
+        mockMvc.perform(get("/api/todos/{id}", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Todo 不存在，id = " + todoId));
     }
 
     @Test
@@ -93,7 +104,8 @@ class TodoApiTests extends AbstractApiTest {
         mockMvc.perform(patch("/api/todos/{id}/toggle", javaTodoId)
                         .header("Authorization", authClient.bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.completed").value(true));
+                .andExpect(jsonPath("$.completed").value(true))
+                .andExpect(jsonPath("$.completedAt").value(notNullValue()));
 
         mockMvc.perform(get("/api/todos?completed=true")
                         .header("Authorization", authClient.bearer(token)))
@@ -183,7 +195,58 @@ class TodoApiTests extends AbstractApiTest {
                         .header("Authorization", authClient.bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.priority").value("MEDIUM"))
+                .andExpect(jsonPath("$.deleted").value(false))
                 .andExpect(jsonPath("$.dueDate").value(nullValue()));
+    }
+
+    @Test
+    void shouldRestoreSoftDeletedTodo() throws Exception {
+        String token = authClient.registerAndLogin("zading", "123456");
+        Long todoId = todoClient.createAndReadId(token, "可恢复的任务");
+
+        mockMvc.perform(delete("/api/todos/{id}", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/todos")
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(0)));
+
+        mockMvc.perform(patch("/api/todos/{id}/restore", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("可恢复的任务"))
+                .andExpect(jsonPath("$.deleted").value(false))
+                .andExpect(jsonPath("$.deletedAt").value(nullValue()));
+
+        mockMvc.perform(get("/api/todos/{id}", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("可恢复的任务"))
+                .andExpect(jsonPath("$.deleted").value(false));
+    }
+
+    @Test
+    void shouldClearCompletedAtWhenCompletedIsUpdatedToFalse() throws Exception {
+        String token = authClient.registerAndLogin("zading", "123456");
+        Long todoId = todoClient.createAndReadId(token, "完成状态一致性");
+
+        mockMvc.perform(patch("/api/todos/{id}", todoId)
+                        .header("Authorization", authClient.bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("completed", true))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completed").value(true))
+                .andExpect(jsonPath("$.completedAt").value(notNullValue()));
+
+        mockMvc.perform(patch("/api/todos/{id}", todoId)
+                        .header("Authorization", authClient.bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("completed", false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completed").value(false))
+                .andExpect(jsonPath("$.completedAt").value(nullValue()));
     }
 
     @Test
@@ -233,6 +296,22 @@ class TodoApiTests extends AbstractApiTest {
                 .andExpect(jsonPath("$.items[0].title").value("用户 B 的任务"));
 
         mockMvc.perform(get("/api/todos/{id}", userATodoId)
+                        .header("Authorization", authClient.bearer(userBToken)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Todo 不存在，id = " + userATodoId));
+    }
+
+    @Test
+    void shouldNotRestoreOtherUsersTodo() throws Exception {
+        String userAToken = authClient.registerAndLogin("user-a", "123456");
+        String userBToken = authClient.registerAndLogin("user-b", "123456");
+        Long userATodoId = todoClient.createAndReadId(userAToken, "用户 A 删除的任务");
+
+        mockMvc.perform(delete("/api/todos/{id}", userATodoId)
+                        .header("Authorization", authClient.bearer(userAToken)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(patch("/api/todos/{id}/restore", userATodoId)
                         .header("Authorization", authClient.bearer(userBToken)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Todo 不存在，id = " + userATodoId));
