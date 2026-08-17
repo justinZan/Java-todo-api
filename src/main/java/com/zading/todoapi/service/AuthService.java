@@ -2,6 +2,8 @@ package com.zading.todoapi.service;
 
 import com.zading.todoapi.dto.LoginResponse;
 import com.zading.todoapi.dto.UserResponse;
+import com.zading.todoapi.exception.BusinessException;
+import com.zading.todoapi.exception.ErrorCode;
 import com.zading.todoapi.exception.UnauthorizedException;
 import com.zading.todoapi.model.AppUser;
 import com.zading.todoapi.repository.UserRepository;
@@ -25,7 +27,7 @@ public class AuthService {
         String normalizedUsername = normalizeUsername(username);
 
         if (userRepository.existsByUsername(normalizedUsername)) {
-            throw new IllegalArgumentException("用户名已存在");
+            throw new BusinessException(ErrorCode.DUPLICATE_USERNAME, "用户名已存在");
         }
 
         AppUser user = new AppUser(normalizedUsername, passwordEncoder.encode(password));

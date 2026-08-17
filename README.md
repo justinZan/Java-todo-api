@@ -10,6 +10,8 @@
 - Todo 数据按用户隔离
 - Todo 软删除和恢复
 - completedAt / deletedAt 生命周期字段
+- 统一 API 响应结构
+- 业务错误码
 - 请求 / 响应 DTO 分层
 - 分页、排序、筛选列表查询
 - 全局异常处理
@@ -94,7 +96,8 @@ java-todo-api/
 │   ├── week-08-learning.md
 │   ├── week-09-learning.md
 │   ├── week-10-learning.md
-│   └── week-11-learning.md
+│   ├── week-11-learning.md
+│   └── week-12-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -351,6 +354,8 @@ src/test/java/com/zading/todoapi/
 - Todo 数据按用户隔离
 - OpenAPI 文档可访问
 - 参数校验错误响应
+- 统一成功 / 错误响应结构
+- 业务错误码
 - 资源不存在错误响应
 
 ## CI
@@ -423,9 +428,15 @@ Content-Type: application/json
 
 ```json
 {
-  "id": 1,
-  "username": "zading",
-  "createdAt": "2026-07-09T10:00:00.123456"
+  "success": true,
+  "code": "CREATED",
+  "message": "创建成功",
+  "data": {
+    "id": 1,
+    "username": "zading",
+    "createdAt": "2026-08-12T10:00:00.123456"
+  },
+  "path": null
 }
 ```
 
@@ -449,10 +460,42 @@ Content-Type: application/json
 
 ```json
 {
-  "token": "xxxxx.yyyyy.zzzzz",
-  "tokenType": "Bearer"
+  "success": true,
+  "code": "OK",
+  "message": "成功",
+  "data": {
+    "token": "xxxxx.yyyyy.zzzzz",
+    "tokenType": "Bearer"
+  },
+  "path": null
 }
 ```
+
+### 统一响应结构
+
+除 `/hello` 健康检查接口外，业务 API 统一使用下面的响应结构：
+
+```json
+{
+  "success": true,
+  "code": "OK",
+  "message": "成功",
+  "data": {},
+  "path": null
+}
+```
+
+字段说明：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `success` | boolean | 请求是否成功 |
+| `code` | string | 业务状态码，例如 `OK`、`TODO_NOT_FOUND` |
+| `message` | string | 给前端展示或调试使用的消息 |
+| `data` | object/null | 真正的业务数据 |
+| `path` | string/null | 出错时的请求路径 |
+ 
+前端接入时，业务数据统一从 `data` 字段中读取。
 
 ### 认证说明
 
@@ -495,26 +538,32 @@ GET /api/todos?page=0&size=10&completed=false&keyword=java&sort=createdAt,desc
 
 ```json
 {
-  "items": [
-    {
-      "id": 1,
-      "title": "实现 Todo API",
-      "completed": false,
-      "deleted": false,
-      "priority": "HIGH",
-      "dueDate": "2026-07-20",
-      "completedAt": null,
-      "deletedAt": null,
-      "createdAt": "2026-07-08T10:00:00.123456",
-      "updatedAt": "2026-07-08T10:00:00.123456"
-    }
-  ],
-  "page": 0,
-  "size": 10,
-  "totalElements": 1,
-  "totalPages": 1,
-  "first": true,
-  "last": true
+  "success": true,
+  "code": "OK",
+  "message": "成功",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "title": "实现 Todo API",
+        "completed": false,
+        "deleted": false,
+        "priority": "HIGH",
+        "dueDate": "2026-09-20",
+        "completedAt": null,
+        "deletedAt": null,
+        "createdAt": "2026-08-12T10:00:00.123456",
+        "updatedAt": "2026-08-12T10:00:00.123456"
+      }
+    ],
+    "page": 0,
+    "size": 10,
+    "totalElements": 1,
+    "totalPages": 1,
+    "first": true,
+    "last": true
+  },
+  "path": null
 }
 ```
 
@@ -546,7 +595,7 @@ Authorization: Bearer <token>
 {
   "title": "实现 Todo API",
   "priority": "HIGH",
-  "dueDate": "2026-07-20"
+  "dueDate": "2026-09-20"
 }
 ```
 
@@ -556,7 +605,7 @@ Authorization: Bearer <token>
 curl -X POST http://localhost:8080/api/todos \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <token>" \
-  -d '{"title":"实现 Todo API","priority":"HIGH","dueDate":"2026-07-20"}'
+  -d '{"title":"实现 Todo API","priority":"HIGH","dueDate":"2026-09-20"}'
 ```
 
 成功状态码：
@@ -580,7 +629,7 @@ Authorization: Bearer <token>
   "title": "更新 API 文档",
   "completed": true,
   "priority": "LOW",
-  "dueDate": "2026-08-01"
+  "dueDate": "2026-09-25"
 }
 ```
 
@@ -592,7 +641,7 @@ Authorization: Bearer <token>
 curl -X PATCH http://localhost:8080/api/todos/1 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <token>" \
-  -d '{"title":"更新 API 文档","completed":true,"priority":"LOW","dueDate":"2026-08-01"}'
+  -d '{"title":"更新 API 文档","completed":true,"priority":"LOW","dueDate":"2026-09-25"}'
 ```
 
 ### 切换完成状态
@@ -633,7 +682,19 @@ curl -X DELETE http://localhost:8080/api/todos/1 \
 成功状态码：
 
 ```text
-204 No Content
+200 OK
+```
+
+响应：
+
+```json
+{
+  "success": true,
+  "code": "OK",
+  "message": "删除成功",
+  "data": null,
+  "path": null
+}
 ```
 
 删除行为说明：
@@ -661,16 +722,22 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 
 ```json
 {
-  "id": 1,
-  "title": "实现 Todo API",
-  "completed": false,
-  "deleted": false,
-  "priority": "HIGH",
-  "dueDate": "2026-07-20",
-  "completedAt": null,
-  "deletedAt": null,
-  "createdAt": "2026-07-08T10:00:00.123456",
-  "updatedAt": "2026-07-08T10:05:00.123456"
+  "success": true,
+  "code": "OK",
+  "message": "恢复成功",
+  "data": {
+    "id": 1,
+    "title": "实现 Todo API",
+    "completed": false,
+    "deleted": false,
+    "priority": "HIGH",
+    "dueDate": "2026-09-20",
+    "completedAt": null,
+    "deletedAt": null,
+    "createdAt": "2026-08-12T10:00:00.123456",
+    "updatedAt": "2026-08-12T10:05:00.123456"
+  },
+  "path": null
 }
 ```
 
@@ -680,10 +747,10 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 
 ```json
 {
-  "timestamp": "2026-07-08T10:00:00Z",
-  "status": 400,
-  "error": "Bad Request",
+  "success": false,
+  "code": "VALIDATION_FAILED",
   "message": "title: 任务标题不能为空",
+  "data": null,
   "path": "/api/todos"
 }
 ```
@@ -692,10 +759,10 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 
 ```json
 {
-  "timestamp": "2026-07-08T10:00:00Z",
-  "status": 404,
-  "error": "Not Found",
+  "success": false,
+  "code": "TODO_NOT_FOUND",
   "message": "Todo 不存在，id = 999",
+  "data": null,
   "path": "/api/todos/999"
 }
 ```
@@ -704,9 +771,10 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 
 ```json
 {
-  "status": 401,
-  "error": "Unauthorized",
+  "success": false,
+  "code": "UNAUTHORIZED",
   "message": "请先登录",
+  "data": null,
   "path": "/api/todos"
 }
 ```
@@ -726,3 +794,4 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 9 周：Docker Compose、PostgreSQL、OpenAPI 和请求日志](docs/week-09-learning.md)
 - [第 10 周：测试体系重构、集成测试思维和 CI 准备](docs/week-10-learning.md)
 - [第 11 周：软删除、恢复接口和 Todo 生命周期](docs/week-11-learning.md)
+- [第 12 周：统一响应结构、错误码和参数校验](docs/week-12-learning.md)

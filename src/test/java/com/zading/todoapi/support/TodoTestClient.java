@@ -39,6 +39,6 @@ public class TodoTestClient {
     public Long readId(MvcResult result) throws Exception {
         String responseBody = result.getResponse().getContentAsString();
         JsonNode json = objectMapper.readTree(responseBody);
-        return json.get("id").asLong();
+        return json.get("data").get("id").asLong();
     }
 }

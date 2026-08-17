@@ -1,9 +1,12 @@
 package com.zading.todoapi.controller;
 
+import com.zading.todoapi.dto.ApiResponse;
 import com.zading.todoapi.dto.CreateTodoRequest;
 import com.zading.todoapi.dto.PageResponse;
 import com.zading.todoapi.dto.TodoResponse;
 import com.zading.todoapi.dto.UpdateTodoRequest;
+import com.zading.todoapi.exception.BusinessException;
+import com.zading.todoapi.exception.ErrorCode;
 import com.zading.todoapi.mapper.TodoMapper;
 import com.zading.todoapi.model.Todo;
 import com.zading.todoapi.security.AuthenticatedUser;
@@ -60,7 +63,7 @@ public class TodoController {
     }
 
     @GetMapping
-    public PageResponse<TodoResponse> getTodos(
+    public ApiResponse<PageResponse<TodoResponse>> getTodos(
             @AuthenticationPrincipal AuthenticatedUser currentUser,
             @RequestParam(required = false) Boolean completed,
             @RequestParam(required = false) String keyword,
@@ -72,16 +75,16 @@ public class TodoController {
         Page<Todo> todos = todoService.getTodos(currentUser.getId(), completed, keyword, pageable);
         List<TodoResponse> items = todoMapper.toResponseList(todos);
 
-        return PageResponse.from(todos, items);
+        return ApiResponse.success(PageResponse.from(todos, items));
     }
 
     @GetMapping("/{id}")
-    public TodoResponse getTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
-        return todoMapper.toResponse(todoService.getTodo(currentUser.getId(), id));
+    public ApiResponse<TodoResponse> getTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
+        return ApiResponse.success(todoMapper.toResponse(todoService.getTodo(currentUser.getId(), id)));
     }
 
     @PostMapping
-    public ResponseEntity<TodoResponse> createTodo(
+    public ResponseEntity<ApiResponse<TodoResponse>> createTodo(
             @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody CreateTodoRequest request
     ) {
@@ -97,39 +100,39 @@ public class TodoController {
                 .buildAndExpand(createdTodo.getId())
                 .toUri();
 
-        return ResponseEntity.created(location).body(todoMapper.toResponse(createdTodo));
+        return ResponseEntity.created(location).body(ApiResponse.created(todoMapper.toResponse(createdTodo)));
     }
 
     @PatchMapping("/{id}")
-    public TodoResponse updateTodo(
+    public ApiResponse<TodoResponse> updateTodo(
             @AuthenticationPrincipal AuthenticatedUser currentUser,
             @PathVariable Long id,
             @Valid @RequestBody UpdateTodoRequest request
     ) {
-        return todoMapper.toResponse(todoService.updateTodo(
+        return ApiResponse.success(todoMapper.toResponse(todoService.updateTodo(
                 currentUser.getId(),
                 id,
                 request.getTitle(),
                 request.getCompleted(),
                 request.getPriority(),
                 request.getDueDate()
-        ));
+        )));
     }
 
     @PatchMapping("/{id}/toggle")
-    public TodoResponse toggleTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
-        return todoMapper.toResponse(todoService.toggleTodo(currentUser.getId(), id));
+    public ApiResponse<TodoResponse> toggleTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
+        return ApiResponse.success(todoMapper.toResponse(todoService.toggleTodo(currentUser.getId(), id)));
     }
 
     @PatchMapping("/{id}/restore")
-    public TodoResponse restoreTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
-        return todoMapper.toResponse(todoService.restoreTodo(currentUser.getId(), id));
+    public ApiResponse<TodoResponse> restoreTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
+        return ApiResponse.success("恢复成功", todoMapper.toResponse(todoService.restoreTodo(currentUser.getId(), id)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
+    public ApiResponse<Void> deleteTodo(@AuthenticationPrincipal AuthenticatedUser currentUser, @PathVariable Long id) {
         todoService.deleteTodo(currentUser.getId(), id);
-        return ResponseEntity.noContent().build();
+        return ApiResponse.success("删除成功", null);
     }
 
     private Sort parseSort(String sort) {
@@ -138,7 +141,7 @@ public class TodoController {
         String direction = parts.length > 1 ? parts[1].trim() : "asc";
 
         if (!ALLOWED_SORT_FIELDS.contains(field)) {
-            throw new IllegalArgumentException("不支持的排序字段: " + field);
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的排序字段: " + field);
         }
 
         Sort.Direction sortDirection = parseDirection(direction);
@@ -150,6 +153,6 @@ public class TodoController {
             return Sort.Direction.fromString(direction);
         }
 
-        throw new IllegalArgumentException("不支持的排序方向: " + direction);
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的排序方向: " + direction);
     }
 }
