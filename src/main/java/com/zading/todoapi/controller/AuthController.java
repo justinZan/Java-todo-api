@@ -1,5 +1,6 @@
 package com.zading.todoapi.controller;
 
+import com.zading.todoapi.dto.ApiResponse;
 import com.zading.todoapi.dto.LoginRequest;
 import com.zading.todoapi.dto.LoginResponse;
 import com.zading.todoapi.dto.RegisterRequest;
@@ -24,12 +25,12 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse register(@Valid @RequestBody RegisterRequest request) {
-        return authService.register(request.getUsername(), request.getPassword());
+    public ApiResponse<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
+        return ApiResponse.created(authService.register(request.getUsername(), request.getPassword()));
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request.getUsername(), request.getPassword());
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ApiResponse.success(authService.login(request.getUsername(), request.getPassword()));
     }
 }

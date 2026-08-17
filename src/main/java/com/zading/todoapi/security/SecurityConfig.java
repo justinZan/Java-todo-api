@@ -1,5 +1,8 @@
 package com.zading.todoapi.security;
 
+import com.zading.todoapi.dto.ApiResponse;
+import com.zading.todoapi.exception.ErrorCode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,7 +24,11 @@ import java.nio.charset.StandardCharsets;
 @EnableWebSecurity
 public class SecurityConfig {
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            ObjectMapper objectMapper
+    ) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -44,8 +51,9 @@ public class SecurityConfig {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setCharacterEncoding(StandardCharsets.UTF_8.name());
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    response.getWriter().write("""
-                            {"status":401,"error":"Unauthorized","message":"请先登录","path":"%s"}""".formatted(request.getRequestURI()));
+                    response.getWriter().write(objectMapper.writeValueAsString(
+                            ApiResponse.error(ErrorCode.UNAUTHORIZED, "请先登录", request.getRequestURI())
+                    ));
                 }))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
