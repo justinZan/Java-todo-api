@@ -1,7 +1,9 @@
 package com.zading.todoapi;
 
 import com.zading.todoapi.support.AbstractApiTest;
+import com.zading.todoapi.config.CacheNames;
 import org.junit.jupiter.api.Test;
+import org.springframework.cache.Cache;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -11,6 +13,8 @@ import java.util.Map;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -294,6 +298,60 @@ class TodoApiTests extends AbstractApiTest {
                 .andExpect(jsonPath("$.data", hasSize(5)))
                 .andExpect(jsonPath("$.data[4].action").value("RESTORED"))
                 .andExpect(jsonPath("$.data[4].description").value("恢复 Todo"));
+    }
+
+    @Test
+    void shouldCacheTodoDetailAndEvictWhenUpdated() throws Exception {
+        String token = authClient.registerAndLogin("zading", "123456");
+        Long userId = userRepository.findByUsername("zading").orElseThrow().getId();
+        Long todoId = todoClient.createAndReadId(token, "缓存详情任务");
+        String cacheKey = userId + ":" + todoId;
+        Cache todoDetailCache = cacheManager.getCache(CacheNames.TODO_DETAIL);
+
+        assertNotNull(todoDetailCache);
+        assertNull(todoDetailCache.get(cacheKey));
+
+        mockMvc.perform(get("/api/todos/{id}", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("缓存详情任务"));
+
+        assertNotNull(todoDetailCache.get(cacheKey));
+
+        mockMvc.perform(patch("/api/todos/{id}", todoId)
+                        .header("Authorization", authClient.bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("title", "缓存已失效的新标题"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("缓存已失效的新标题"));
+
+        assertNull(todoDetailCache.get(cacheKey));
+    }
+
+    @Test
+    void shouldCacheTodoLogsAndEvictWhenActionChanges() throws Exception {
+        String token = authClient.registerAndLogin("zading", "123456");
+        Long userId = userRepository.findByUsername("zading").orElseThrow().getId();
+        Long todoId = todoClient.createAndReadId(token, "缓存日志任务");
+        String cacheKey = userId + ":" + todoId;
+        Cache todoLogsCache = cacheManager.getCache(CacheNames.TODO_LOGS);
+
+        assertNotNull(todoLogsCache);
+        assertNull(todoLogsCache.get(cacheKey));
+
+        mockMvc.perform(get("/api/todos/{id}/logs", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].action").value("CREATED"));
+
+        assertNotNull(todoLogsCache.get(cacheKey));
+
+        mockMvc.perform(patch("/api/todos/{id}/toggle", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk());
+
+        assertNull(todoLogsCache.get(cacheKey));
     }
 
     @Test
