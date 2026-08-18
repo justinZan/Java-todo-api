@@ -3,26 +3,38 @@ package com.zading.todoapi.service;
 import com.zading.todoapi.exception.TodoNotFoundException;
 import com.zading.todoapi.model.AppUser;
 import com.zading.todoapi.model.Todo;
+import com.zading.todoapi.model.TodoAction;
+import com.zading.todoapi.model.TodoActionLog;
 import com.zading.todoapi.model.TodoPriority;
+import com.zading.todoapi.repository.TodoActionLogRepository;
 import com.zading.todoapi.repository.TodoRepository;
 import com.zading.todoapi.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class TodoService {
     private final TodoRepository todoRepository;
+    private final TodoActionLogRepository todoActionLogRepository;
     private final UserRepository userRepository;
 
-    public TodoService(TodoRepository todoRepository, UserRepository userRepository) {
+    public TodoService(
+            TodoRepository todoRepository,
+            TodoActionLogRepository todoActionLogRepository,
+            UserRepository userRepository
+    ) {
         this.todoRepository = todoRepository;
+        this.todoActionLogRepository = todoActionLogRepository;
         this.userRepository = userRepository;
     }
 
+    @Transactional(readOnly = true)
     public Page<Todo> getTodos(Long userId, Boolean completed, String keyword, Pageable pageable) {
         String normalizedKeyword = normalizeKeyword(keyword);
 
@@ -41,11 +53,13 @@ public class TodoService {
         return todoRepository.findByUserIdAndDeletedFalse(userId, pageable);
     }
 
+    @Transactional(readOnly = true)
     public Todo getTodo(Long userId, Long id) {
         return todoRepository.findByIdAndUserIdAndDeletedFalse(id, userId)
                 .orElseThrow(() -> new TodoNotFoundException(id));
     }
 
+    @Transactional
     public Todo addTodo(Long userId, String title, TodoPriority priority, LocalDate dueDate) {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("当前用户不存在"));
@@ -54,53 +68,105 @@ public class TodoService {
         todo.setUser(user);
         todo.setPriority(normalizePriority(priority));
         todo.setDueDate(dueDate);
-        return todoRepository.save(todo);
+        Todo savedTodo = todoRepository.save(todo);
+
+        addActionLog(savedTodo, user, TodoAction.CREATED, "创建 Todo");
+
+        return savedTodo;
     }
 
+    @Transactional
     public Todo updateTodo(Long userId, Long id, String title, Boolean completed, TodoPriority priority, LocalDate dueDate) {
         Todo todo = getTodo(userId, id);
+        AppUser user = todo.getUser();
+        boolean updatedFields = false;
+        TodoAction completedAction = null;
 
         if (title != null) {
             todo.setTitle(normalizeTitle(title));
+            updatedFields = true;
         }
 
         if (completed != null) {
+            boolean oldCompleted = todo.isCompleted();
             applyCompleted(todo, completed);
+
+            if (oldCompleted != completed) {
+                completedAction = completed ? TodoAction.COMPLETED : TodoAction.UNCOMPLETED;
+            }
         }
 
         if (priority != null) {
             todo.setPriority(priority);
+            updatedFields = true;
         }
 
         if (dueDate != null) {
             todo.setDueDate(dueDate);
+            updatedFields = true;
         }
 
-        return todoRepository.save(todo);
+        Todo savedTodo = todoRepository.save(todo);
+
+        if (updatedFields) {
+            addActionLog(savedTodo, user, TodoAction.UPDATED, "修改 Todo");
+        }
+
+        if (completedAction != null) {
+            addActionLog(savedTodo, user, completedAction, getCompletedDescription(completedAction));
+        }
+
+        return savedTodo;
     }
 
+    @Transactional
     public Todo toggleTodo(Long userId, Long id) {
         Todo todo = getTodo(userId, id);
-        applyCompleted(todo, !todo.isCompleted());
-        return todoRepository.save(todo);
+        AppUser user = todo.getUser();
+        boolean nextCompleted = !todo.isCompleted();
+
+        applyCompleted(todo, nextCompleted);
+        Todo savedTodo = todoRepository.save(todo);
+        TodoAction action = nextCompleted ? TodoAction.COMPLETED : TodoAction.UNCOMPLETED;
+
+        addActionLog(savedTodo, user, action, getCompletedDescription(action));
+
+        return savedTodo;
     }
 
+    @Transactional
     public void deleteTodo(Long userId, Long id) {
         Todo todo = getTodo(userId, id);
+        AppUser user = todo.getUser();
         todo.setDeleted(true);
         todo.setDeletedAt(LocalDateTime.now());
 
-        todoRepository.save(todo);
+        Todo savedTodo = todoRepository.save(todo);
+        addActionLog(savedTodo, user, TodoAction.DELETED, "删除 Todo");
     }
 
+    @Transactional
     public Todo restoreTodo(Long userId, Long id) {
         Todo todo = todoRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new TodoNotFoundException(id));
+        AppUser user = todo.getUser();
 
         todo.setDeleted(false);
         todo.setDeletedAt(null);
 
-        return todoRepository.save(todo);
+        Todo savedTodo = todoRepository.save(todo);
+
+        addActionLog(savedTodo, user, TodoAction.RESTORED, "恢复 Todo");
+
+        return savedTodo;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TodoActionLog> getTodoLogs(Long userId, Long id) {
+        todoRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new TodoNotFoundException(id));
+
+        return todoActionLogRepository.findByTodoIdAndUserIdOrderByCreatedAtAscIdAsc(id, userId);
     }
 
     private String normalizeTitle(String title) {
@@ -135,5 +201,17 @@ public class TodoService {
         } else {
             todo.setCompletedAt(null);
         }
+    }
+
+    private void addActionLog(Todo todo, AppUser user, TodoAction action, String description) {
+        todoActionLogRepository.save(new TodoActionLog(todo, user, action, description));
+    }
+
+    private String getCompletedDescription(TodoAction action) {
+        if (action == TodoAction.COMPLETED) {
+            return "完成 Todo";
+        }
+
+        return "取消完成 Todo";
     }
 }
