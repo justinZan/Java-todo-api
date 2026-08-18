@@ -12,6 +12,8 @@
 - completedAt / deletedAt 生命周期字段
 - Todo 操作日志
 - Service 层事务管理
+- Todo 详情和操作日志本地缓存
+- 支持 Redis profile 作为外部缓存
 - 统一 API 响应结构
 - 业务错误码
 - 请求 / 响应 DTO 分层
@@ -37,6 +39,8 @@
 - Spring Validation
 - Spring Security
 - Spring Data JPA
+- Spring Cache
+- Spring Data Redis
 - Springdoc OpenAPI
 - Flyway
 - H2 Database
@@ -100,7 +104,9 @@ java-todo-api/
 │   ├── week-10-learning.md
 │   ├── week-11-learning.md
 │   ├── week-12-learning.md
-│   └── week-13-learning.md
+│   ├── week-13-learning.md
+│   ├── week-14-learning.md
+│   └── week-15-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -118,12 +124,13 @@ java-todo-api/
     │   └── resources/
     │       ├── application.properties
     │       ├── application-postgres.properties
+    │       ├── application-redis.properties
     │       └── db/migration/
     │           ├── V1__create_todos_table.sql
-│           ├── V2__add_priority_and_due_date_to_todos.sql
-│           ├── V3__create_users_and_link_todos.sql
-│           ├── V4__add_todo_lifecycle_fields.sql
-│           └── V5__create_todo_action_logs_table.sql
+    │           ├── V2__add_priority_and_due_date_to_todos.sql
+    │           ├── V3__create_users_and_link_todos.sql
+    │           ├── V4__add_todo_lifecycle_fields.sql
+    │           └── V5__create_todo_action_logs_table.sql
     └── test/
         ├── java/com/zading/todoapi/
         │   ├── ApplicationSmokeTests.java
@@ -132,6 +139,7 @@ java-todo-api/
         │   ├── TodoApiTests.java
         │   └── support/
         └── resources/
+            ├── mockito-extensions/
             └── application-test.properties
 ```
 
@@ -265,6 +273,61 @@ app.request-logging.enabled=true
 HTTP GET /api/todos -> 200 (12 ms)
 ```
 
+### 缓存配置
+
+默认使用 Spring Boot Simple Cache：
+
+```properties
+spring.cache.type=simple
+```
+
+这是本地内存缓存，不需要安装 Redis。当前缓存内容：
+
+```text
+todoDetail  Todo 详情缓存
+todoLogs    Todo 操作日志缓存
+```
+
+写操作会清理相关缓存，避免返回旧数据：
+
+```text
+update / toggle / delete / restore
+  -> 清理 todoDetail
+  -> 清理 todoLogs
+```
+
+如果本地或服务器已经有 Redis，可以启用 `redis` profile，把缓存底层从本地内存切换成 Redis：
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=redis
+```
+
+Redis 连接配置文件：
+
+```text
+src/main/resources/application-redis.properties
+```
+
+默认连接信息：
+
+```properties
+spring.cache.type=redis
+spring.data.redis.host=${REDIS_HOST:localhost}
+spring.data.redis.port=${REDIS_PORT:6379}
+spring.data.redis.password=${REDIS_PASSWORD:}
+spring.data.redis.timeout=2s
+```
+
+当前 Redis 缓存 TTL：
+
+```text
+todoDetail  10 分钟
+todoLogs     5 分钟
+默认缓存     10 分钟
+```
+
+如果没有安装 Redis，不要启用 `redis` profile，直接使用默认启动方式即可。
+
 ## 数据库迁移
 
 Flyway 迁移脚本目录：
@@ -351,6 +414,9 @@ src/test/java/com/zading/todoapi/
 - 删除 Todo
 - 恢复软删除 Todo
 - 查询 Todo 操作日志
+- Todo 详情缓存和缓存失效
+- Todo 操作日志缓存和缓存失效
+- Redis profile 配置和 TTL 设置
 - 按完成状态筛选
 - 按标题关键词搜索
 - 分页和排序
@@ -853,3 +919,5 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 11 周：软删除、恢复接口和 Todo 生命周期](docs/week-11-learning.md)
 - [第 12 周：统一响应结构、错误码和参数校验](docs/week-12-learning.md)
 - [第 13 周：事务、Todo 操作日志和数据一致性](docs/week-13-learning.md)
+- [第 14 周：缓存、接口性能和查询优化](docs/week-14-learning.md)
+- [第 15 周：Redis 缓存入门和外部缓存配置](docs/week-15-learning.md)
