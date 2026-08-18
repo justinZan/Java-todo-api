@@ -1,5 +1,6 @@
 package com.zading.todoapi.service;
 
+import com.zading.todoapi.config.CacheNames;
 import com.zading.todoapi.exception.TodoNotFoundException;
 import com.zading.todoapi.model.AppUser;
 import com.zading.todoapi.model.Todo;
@@ -9,6 +10,9 @@ import com.zading.todoapi.model.TodoPriority;
 import com.zading.todoapi.repository.TodoActionLogRepository;
 import com.zading.todoapi.repository.TodoRepository;
 import com.zading.todoapi.repository.UserRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -54,6 +58,7 @@ public class TodoService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheNames.TODO_DETAIL, key = "#userId + ':' + #id")
     public Todo getTodo(Long userId, Long id) {
         return todoRepository.findByIdAndUserIdAndDeletedFalse(id, userId)
                 .orElseThrow(() -> new TodoNotFoundException(id));
@@ -76,6 +81,10 @@ public class TodoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.TODO_DETAIL, key = "#userId + ':' + #id"),
+            @CacheEvict(cacheNames = CacheNames.TODO_LOGS, key = "#userId + ':' + #id")
+    })
     public Todo updateTodo(Long userId, Long id, String title, Boolean completed, TodoPriority priority, LocalDate dueDate) {
         Todo todo = getTodo(userId, id);
         AppUser user = todo.getUser();
@@ -120,6 +129,10 @@ public class TodoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.TODO_DETAIL, key = "#userId + ':' + #id"),
+            @CacheEvict(cacheNames = CacheNames.TODO_LOGS, key = "#userId + ':' + #id")
+    })
     public Todo toggleTodo(Long userId, Long id) {
         Todo todo = getTodo(userId, id);
         AppUser user = todo.getUser();
@@ -135,6 +148,10 @@ public class TodoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.TODO_DETAIL, key = "#userId + ':' + #id"),
+            @CacheEvict(cacheNames = CacheNames.TODO_LOGS, key = "#userId + ':' + #id")
+    })
     public void deleteTodo(Long userId, Long id) {
         Todo todo = getTodo(userId, id);
         AppUser user = todo.getUser();
@@ -146,6 +163,10 @@ public class TodoService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.TODO_DETAIL, key = "#userId + ':' + #id"),
+            @CacheEvict(cacheNames = CacheNames.TODO_LOGS, key = "#userId + ':' + #id")
+    })
     public Todo restoreTodo(Long userId, Long id) {
         Todo todo = todoRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new TodoNotFoundException(id));
@@ -162,6 +183,7 @@ public class TodoService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheNames.TODO_LOGS, key = "#userId + ':' + #id")
     public List<TodoActionLog> getTodoLogs(Long userId, Long id) {
         todoRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new TodoNotFoundException(id));
