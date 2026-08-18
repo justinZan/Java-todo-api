@@ -3,12 +3,14 @@ package com.zading.todoapi.controller;
 import com.zading.todoapi.dto.ApiResponse;
 import com.zading.todoapi.dto.CreateTodoRequest;
 import com.zading.todoapi.dto.PageResponse;
+import com.zading.todoapi.dto.TodoActionLogResponse;
 import com.zading.todoapi.dto.TodoResponse;
 import com.zading.todoapi.dto.UpdateTodoRequest;
 import com.zading.todoapi.exception.BusinessException;
 import com.zading.todoapi.exception.ErrorCode;
 import com.zading.todoapi.mapper.TodoMapper;
 import com.zading.todoapi.model.Todo;
+import com.zading.todoapi.model.TodoActionLog;
 import com.zading.todoapi.security.AuthenticatedUser;
 import com.zading.todoapi.service.TodoService;
 import jakarta.validation.Valid;
@@ -83,6 +85,19 @@ public class TodoController {
         return ApiResponse.success(todoMapper.toResponse(todoService.getTodo(currentUser.getId(), id)));
     }
 
+    @GetMapping("/{id}/logs")
+    public ApiResponse<List<TodoActionLogResponse>> getTodoLogs(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @PathVariable Long id
+    ) {
+        List<TodoActionLogResponse> logs = todoService.getTodoLogs(currentUser.getId(), id)
+                .stream()
+                .map(this::toLogResponse)
+                .toList();
+
+        return ApiResponse.success(logs);
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<TodoResponse>> createTodo(
             @AuthenticationPrincipal AuthenticatedUser currentUser,
@@ -154,5 +169,14 @@ public class TodoController {
         }
 
         throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的排序方向: " + direction);
+    }
+
+    private TodoActionLogResponse toLogResponse(TodoActionLog log) {
+        return new TodoActionLogResponse(
+                log.getId(),
+                log.getAction(),
+                log.getDescription(),
+                log.getCreatedAt()
+        );
     }
 }

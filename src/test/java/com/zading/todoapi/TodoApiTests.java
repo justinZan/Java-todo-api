@@ -250,6 +250,67 @@ class TodoApiTests extends AbstractApiTest {
     }
 
     @Test
+    void shouldRecordTodoActionLogs() throws Exception {
+        String token = authClient.registerAndLogin("zading", "123456");
+        Long todoId = todoClient.createAndReadId(token, "需要记录日志的任务");
+
+        mockMvc.perform(patch("/api/todos/{id}", todoId)
+                        .header("Authorization", authClient.bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("title", "已经修改标题的任务"))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/todos/{id}/toggle", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/todos/{id}", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/todos/{id}/logs", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data", hasSize(4)))
+                .andExpect(jsonPath("$.data[0].action").value("CREATED"))
+                .andExpect(jsonPath("$.data[0].description").value("创建 Todo"))
+                .andExpect(jsonPath("$.data[0].createdAt").exists())
+                .andExpect(jsonPath("$.data[1].action").value("UPDATED"))
+                .andExpect(jsonPath("$.data[1].description").value("修改 Todo"))
+                .andExpect(jsonPath("$.data[2].action").value("COMPLETED"))
+                .andExpect(jsonPath("$.data[2].description").value("完成 Todo"))
+                .andExpect(jsonPath("$.data[3].action").value("DELETED"))
+                .andExpect(jsonPath("$.data[3].description").value("删除 Todo"));
+
+        mockMvc.perform(patch("/api/todos/{id}/restore", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/todos/{id}/logs", todoId)
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(5)))
+                .andExpect(jsonPath("$.data[4].action").value("RESTORED"))
+                .andExpect(jsonPath("$.data[4].description").value("恢复 Todo"));
+    }
+
+    @Test
+    void shouldNotReturnOtherUsersTodoActionLogs() throws Exception {
+        String userAToken = authClient.registerAndLogin("user-a", "123456");
+        String userBToken = authClient.registerAndLogin("user-b", "123456");
+        Long userATodoId = todoClient.createAndReadId(userAToken, "用户 A 的日志任务");
+
+        mockMvc.perform(get("/api/todos/{id}/logs", userATodoId)
+                        .header("Authorization", authClient.bearer(userBToken)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("TODO_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Todo 不存在，id = " + userATodoId));
+    }
+
+    @Test
     void shouldClearCompletedAtWhenCompletedIsUpdatedToFalse() throws Exception {
         String token = authClient.registerAndLogin("zading", "123456");
         Long todoId = todoClient.createAndReadId(token, "完成状态一致性");

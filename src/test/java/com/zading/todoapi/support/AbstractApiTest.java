@@ -1,6 +1,7 @@
 package com.zading.todoapi.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zading.todoapi.repository.TodoActionLogRepository;
 import com.zading.todoapi.repository.TodoRepository;
 import com.zading.todoapi.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,9 @@ public abstract class AbstractApiTest {
     protected ObjectMapper objectMapper;
 
     @Autowired
+    private TodoActionLogRepository todoActionLogRepository;
+
+    @Autowired
     private TodoRepository todoRepository;
 
     @Autowired
@@ -33,6 +37,7 @@ public abstract class AbstractApiTest {
 
     @BeforeEach
     void setUpApiTest() {
+        todoActionLogRepository.deleteAll();
         todoRepository.deleteAll();
         userRepository.deleteAll();
         authClient = new AuthTestClient(mockMvc, objectMapper);

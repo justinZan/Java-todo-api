@@ -10,6 +10,8 @@
 - Todo 数据按用户隔离
 - Todo 软删除和恢复
 - completedAt / deletedAt 生命周期字段
+- Todo 操作日志
+- Service 层事务管理
 - 统一 API 响应结构
 - 业务错误码
 - 请求 / 响应 DTO 分层
@@ -97,7 +99,8 @@ java-todo-api/
 │   ├── week-09-learning.md
 │   ├── week-10-learning.md
 │   ├── week-11-learning.md
-│   └── week-12-learning.md
+│   ├── week-12-learning.md
+│   └── week-13-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -117,9 +120,10 @@ java-todo-api/
     │       ├── application-postgres.properties
     │       └── db/migration/
     │           ├── V1__create_todos_table.sql
-    │           ├── V2__add_priority_and_due_date_to_todos.sql
-    │           ├── V3__create_users_and_link_todos.sql
-    │           └── V4__add_todo_lifecycle_fields.sql
+│           ├── V2__add_priority_and_due_date_to_todos.sql
+│           ├── V3__create_users_and_link_todos.sql
+│           ├── V4__add_todo_lifecycle_fields.sql
+│           └── V5__create_todo_action_logs_table.sql
     └── test/
         ├── java/com/zading/todoapi/
         │   ├── ApplicationSmokeTests.java
@@ -276,6 +280,7 @@ V1__create_todos_table.sql
 V2__add_priority_and_due_date_to_todos.sql
 V3__create_users_and_link_todos.sql
 V4__add_todo_lifecycle_fields.sql
+V5__create_todo_action_logs_table.sql
 ```
 
 JPA 不负责自动修改表结构：
@@ -345,12 +350,14 @@ src/test/java/com/zading/todoapi/
 - 切换完成状态
 - 删除 Todo
 - 恢复软删除 Todo
+- 查询 Todo 操作日志
 - 按完成状态筛选
 - 按标题关键词搜索
 - 分页和排序
 - priority / dueDate 字段
 - completedAt / deletedAt 生命周期字段
 - 软删除后默认查询不可见
+- Todo 操作日志写入和用户隔离
 - Todo 数据按用户隔离
 - OpenAPI 文档可访问
 - 参数校验错误响应
@@ -581,6 +588,56 @@ curl http://localhost:8080/api/todos/1 \
   -H "Authorization: Bearer <token>"
 ```
 
+### 查询 Todo 操作日志
+
+```http
+GET /api/todos/{id}/logs
+Authorization: Bearer <token>
+```
+
+示例：
+
+```bash
+curl http://localhost:8080/api/todos/1/logs \
+  -H "Authorization: Bearer <token>"
+```
+
+响应：
+
+```json
+{
+  "success": true,
+  "code": "OK",
+  "message": "成功",
+  "data": [
+    {
+      "id": 1,
+      "action": "CREATED",
+      "description": "创建 Todo",
+      "createdAt": "2026-08-17T10:00:00.123456"
+    },
+    {
+      "id": 2,
+      "action": "COMPLETED",
+      "description": "完成 Todo",
+      "createdAt": "2026-08-17T10:10:00.123456"
+    }
+  ],
+  "path": null
+}
+```
+
+当前记录的操作类型：
+
+```text
+CREATED      创建 Todo
+UPDATED      修改 Todo
+COMPLETED    完成 Todo
+UNCOMPLETED  取消完成 Todo
+DELETED      删除 Todo
+RESTORED     恢复 Todo
+```
+
 ### 创建 Todo
 
 ```http
@@ -795,3 +852,4 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 10 周：测试体系重构、集成测试思维和 CI 准备](docs/week-10-learning.md)
 - [第 11 周：软删除、恢复接口和 Todo 生命周期](docs/week-11-learning.md)
 - [第 12 周：统一响应结构、错误码和参数校验](docs/week-12-learning.md)
+- [第 13 周：事务、Todo 操作日志和数据一致性](docs/week-13-learning.md)
