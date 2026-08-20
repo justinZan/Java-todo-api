@@ -1,6 +1,7 @@
 package com.zading.todoapi.service;
 
 import com.zading.todoapi.config.CacheNames;
+import com.zading.todoapi.event.TodoEventPublisher;
 import com.zading.todoapi.exception.TodoNotFoundException;
 import com.zading.todoapi.model.AppUser;
 import com.zading.todoapi.model.Todo;
@@ -27,15 +28,18 @@ public class TodoService {
     private final TodoRepository todoRepository;
     private final TodoActionLogRepository todoActionLogRepository;
     private final UserRepository userRepository;
+    private final TodoEventPublisher todoEventPublisher;
 
     public TodoService(
             TodoRepository todoRepository,
             TodoActionLogRepository todoActionLogRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            TodoEventPublisher todoEventPublisher
     ) {
         this.todoRepository = todoRepository;
         this.todoActionLogRepository = todoActionLogRepository;
         this.userRepository = userRepository;
+        this.todoEventPublisher = todoEventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -226,7 +230,7 @@ public class TodoService {
     }
 
     private void addActionLog(Todo todo, AppUser user, TodoAction action, String description) {
-        todoActionLogRepository.save(new TodoActionLog(todo, user, action, description));
+        todoEventPublisher.publishActionLog(todo, user, action, description);
     }
 
     private String getCompletedDescription(TodoAction action) {

@@ -15,6 +15,10 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Duration;
+
+import static org.junit.jupiter.api.Assertions.fail;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -30,7 +34,7 @@ public abstract class AbstractApiTest {
     protected CacheManager cacheManager;
 
     @Autowired
-    private TodoActionLogRepository todoActionLogRepository;
+    protected TodoActionLogRepository todoActionLogRepository;
 
     @Autowired
     private TodoRepository todoRepository;
@@ -58,5 +62,30 @@ public abstract class AbstractApiTest {
         if (cache != null) {
             cache.clear();
         }
+    }
+
+    protected void waitUntilActionLogCount(Long todoId, Long userId, long expectedCount) {
+        long deadline = System.nanoTime() + Duration.ofSeconds(3).toNanos();
+
+        while (System.nanoTime() < deadline) {
+            long currentCount = todoActionLogRepository.countByTodoIdAndUserId(todoId, userId);
+
+            if (currentCount >= expectedCount) {
+                return;
+            }
+
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                fail("等待异步 Todo 操作日志时被中断");
+            }
+        }
+
+        long actualCount = todoActionLogRepository.countByTodoIdAndUserId(todoId, userId);
+        fail("等待异步 Todo 操作日志超时，todoId=" + todoId
+                + ", userId=" + userId
+                + ", expected=" + expectedCount
+                + ", actual=" + actualCount);
     }
 }

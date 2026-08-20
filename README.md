@@ -11,6 +11,7 @@
 - Todo 软删除和恢复
 - completedAt / deletedAt 生命周期字段
 - Todo 操作日志
+- Todo 操作日志事件驱动异步写入
 - Service 层事务管理
 - Todo 详情和操作日志本地缓存
 - 支持 Redis profile 作为外部缓存
@@ -41,6 +42,7 @@
 - Spring Data JPA
 - Spring Cache
 - Spring Data Redis
+- Spring Event / Async
 - Springdoc OpenAPI
 - Flyway
 - H2 Database
@@ -56,6 +58,8 @@ HTTP 请求
   -> Security Filter
   -> Controller
   -> Service
+  -> Event Publisher
+  -> Event Listener
   -> Repository
   -> Database
 
@@ -71,6 +75,7 @@ com.zading.todoapi
 ├── config       工程配置，例如 OpenAPI 配置
 ├── controller   HTTP 接口入口
 ├── dto          请求 / 响应对象
+├── event        应用内部事件、事件发布器和事件监听器
 ├── exception    自定义异常和全局异常处理
 ├── logging      请求日志过滤器
 ├── mapper       Entity 到 DTO 的转换
@@ -106,7 +111,8 @@ java-todo-api/
 │   ├── week-12-learning.md
 │   ├── week-13-learning.md
 │   ├── week-14-learning.md
-│   └── week-15-learning.md
+│   ├── week-15-learning.md
+│   └── week-16-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -114,6 +120,7 @@ java-todo-api/
     │   │   ├── config/
     │   │   ├── controller/
     │   │   ├── dto/
+    │   │   ├── event/
     │   │   ├── exception/
     │   │   ├── logging/
     │   │   ├── mapper/
@@ -328,6 +335,32 @@ todoLogs     5 分钟
 
 如果没有安装 Redis，不要启用 `redis` profile，直接使用默认启动方式即可。
 
+### 异步事件配置
+
+项目使用 Spring Event 解耦 Todo 主业务和操作日志写入：
+
+```text
+TodoService
+  -> 发布 TodoActionLogEvent
+  -> 事务提交后 TodoActionLogEventListener 接收事件
+  -> 使用 todoTaskExecutor 异步写入 TodoActionLog
+```
+
+异步线程池配置文件：
+
+```text
+src/main/java/com/zading/todoapi/config/AsyncConfig.java
+```
+
+当前线程池参数：
+
+```text
+核心线程数：2
+最大线程数：4
+队列容量：100
+线程名前缀：todo-async-
+```
+
 ## 数据库迁移
 
 Flyway 迁移脚本目录：
@@ -414,6 +447,7 @@ src/test/java/com/zading/todoapi/
 - 删除 Todo
 - 恢复软删除 Todo
 - 查询 Todo 操作日志
+- Todo 操作日志事件驱动异步写入
 - Todo 详情缓存和缓存失效
 - Todo 操作日志缓存和缓存失效
 - Redis profile 配置和 TTL 设置

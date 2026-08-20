@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface TodoActionLogRepository extends JpaRepository<TodoActionLog, Long> {
     List<TodoActionLog> findByTodoIdAndUserIdOrderByCreatedAtAscIdAsc(Long todoId, Long userId);
+
+    long countByTodoIdAndUserId(Long todoId, Long userId);
 }
