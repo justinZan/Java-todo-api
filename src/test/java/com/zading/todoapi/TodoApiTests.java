@@ -256,6 +256,7 @@ class TodoApiTests extends AbstractApiTest {
     @Test
     void shouldRecordTodoActionLogs() throws Exception {
         String token = authClient.registerAndLogin("zading", "123456");
+        Long userId = userRepository.findByUsername("zading").orElseThrow().getId();
         Long todoId = todoClient.createAndReadId(token, "需要记录日志的任务");
 
         mockMvc.perform(patch("/api/todos/{id}", todoId)
@@ -271,6 +272,8 @@ class TodoApiTests extends AbstractApiTest {
         mockMvc.perform(delete("/api/todos/{id}", todoId)
                         .header("Authorization", authClient.bearer(token)))
                 .andExpect(status().isOk());
+
+        waitUntilActionLogCount(todoId, userId, 4);
 
         mockMvc.perform(get("/api/todos/{id}/logs", todoId)
                         .header("Authorization", authClient.bearer(token)))
@@ -291,6 +294,8 @@ class TodoApiTests extends AbstractApiTest {
         mockMvc.perform(patch("/api/todos/{id}/restore", todoId)
                         .header("Authorization", authClient.bearer(token)))
                 .andExpect(status().isOk());
+
+        waitUntilActionLogCount(todoId, userId, 5);
 
         mockMvc.perform(get("/api/todos/{id}/logs", todoId)
                         .header("Authorization", authClient.bearer(token)))
@@ -338,6 +343,8 @@ class TodoApiTests extends AbstractApiTest {
 
         assertNotNull(todoLogsCache);
         assertNull(todoLogsCache.get(cacheKey));
+
+        waitUntilActionLogCount(todoId, userId, 1);
 
         mockMvc.perform(get("/api/todos/{id}/logs", todoId)
                         .header("Authorization", authClient.bearer(token)))
