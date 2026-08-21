@@ -394,6 +394,18 @@ class TodoApiTests extends AbstractApiTest {
                 .andExpect(jsonPath("$.data[0].action").value("OVERDUE"))
                 .andExpect(jsonPath("$.data[0].description").value("Todo 已过期"));
 
+        mockMvc.perform(get("/api/internal/jobs/todo-overdue")
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.jobName").value("todo-overdue"))
+                .andExpect(jsonPath("$.data.lastRunDate").value(LocalDate.now().toString()))
+                .andExpect(jsonPath("$.data.lastRunAt").exists())
+                .andExpect(jsonPath("$.data.lastSuccess").value(true))
+                .andExpect(jsonPath("$.data.lastProcessedCount").value(1))
+                .andExpect(jsonPath("$.data.lastDurationMs").exists())
+                .andExpect(jsonPath("$.data.lastErrorMessage").value(nullValue()));
+
         int repeatedRecordedCount = todoOverdueService.recordOverdueTodos(LocalDate.now(), 2);
 
         assertEquals(0, repeatedRecordedCount);

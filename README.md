@@ -13,9 +13,11 @@
 - Todo 操作日志
 - Todo 操作日志事件驱动异步写入
 - Todo 过期扫描定时任务
+- Todo 过期扫描任务状态查询
 - Service 层事务管理
 - Todo 详情和操作日志本地缓存
 - 支持 Redis profile 作为外部缓存
+- Actuator 健康检查、应用信息和运行指标
 - 统一 API 响应结构
 - 业务错误码
 - 请求 / 响应 DTO 分层
@@ -45,6 +47,7 @@
 - Spring Data Redis
 - Spring Event / Async
 - Spring Scheduling
+- Spring Boot Actuator
 - Springdoc OpenAPI
 - Flyway
 - H2 Database
@@ -65,6 +68,9 @@ HTTP 请求
   -> Scheduled Job
   -> Repository
   -> Database
+
+Actuator
+  -> Health / Info / Metrics
 
 Entity
   -> Mapper
@@ -117,7 +123,8 @@ java-todo-api/
 │   ├── week-14-learning.md
 │   ├── week-15-learning.md
 │   ├── week-16-learning.md
-│   └── week-17-learning.md
+│   ├── week-17-learning.md
+│   └── week-18-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -147,6 +154,7 @@ java-todo-api/
     └── test/
         ├── java/com/zading/todoapi/
         │   ├── ApplicationSmokeTests.java
+        │   ├── ActuatorTests.java
         │   ├── AuthApiTests.java
         │   ├── OpenApiTests.java
         │   ├── TodoApiTests.java
@@ -270,6 +278,38 @@ OpenAPI JSON 地址：
 
 ```text
 http://localhost:8080/v3/api-docs
+```
+
+### Actuator 可观测性配置
+
+项目提供 Spring Boot Actuator 基础可观测性端点：
+
+```text
+GET /actuator/health   应用健康状态
+GET /actuator/info     应用基础信息
+GET /actuator/metrics  JVM、HTTP、进程等运行指标列表
+```
+
+默认只开放 `health`、`info`、`metrics` 三类端点：
+
+```properties
+management.endpoints.web.exposure.include=health,info,metrics
+management.endpoint.health.show-details=never
+management.info.env.enabled=true
+```
+
+默认环境不强制检查 Redis：
+
+```properties
+management.health.redis.enabled=false
+```
+
+这是为了保证本机没有安装 Redis 时，应用仍然可以正常启动，`/actuator/health` 也不会因为 Redis 未连接而返回 `DOWN`。
+
+启用 `redis` profile 时，会重新打开 Redis 健康检查：
+
+```properties
+management.health.redis.enabled=true
 ```
 
 ### 请求日志配置
@@ -399,6 +439,25 @@ app.todo.overdue-job.page-size=50
 app.todo.overdue-job.enabled=false
 ```
 
+任务最近一次执行状态可以通过内部接口查询：
+
+```http
+GET /api/internal/jobs/todo-overdue
+Authorization: Bearer <token>
+```
+
+响应数据字段：
+
+| 字段 | 说明 |
+|---|---|
+| `jobName` | 任务名称 |
+| `lastRunDate` | 最近一次扫描对应的业务日期 |
+| `lastRunAt` | 最近一次实际执行时间 |
+| `lastSuccess` | 最近一次是否执行成功 |
+| `lastProcessedCount` | 最近一次处理的 Todo 数量 |
+| `lastDurationMs` | 最近一次耗时，单位毫秒 |
+| `lastErrorMessage` | 最近一次失败原因，成功时为 `null` |
+
 ## 数据库迁移
 
 Flyway 迁移脚本目录：
@@ -460,6 +519,7 @@ mvn test
 
 ```text
 src/test/java/com/zading/todoapi/
+├── ActuatorTests.java           Actuator 健康检查 / 信息 / 指标测试
 ├── ApplicationSmokeTests.java   应用冒烟测试
 ├── AuthApiTests.java            注册 / 登录接口测试
 ├── OpenApiTests.java            OpenAPI 文档测试
@@ -487,6 +547,7 @@ src/test/java/com/zading/todoapi/
 - 查询 Todo 操作日志
 - Todo 操作日志事件驱动异步写入
 - Todo 过期扫描定时任务
+- Todo 过期扫描任务状态查询
 - Todo 详情缓存和缓存失效
 - Todo 操作日志缓存和缓存失效
 - Redis profile 配置和 TTL 设置
@@ -499,6 +560,7 @@ src/test/java/com/zading/todoapi/
 - Todo 操作日志写入和用户隔离
 - Todo 数据按用户隔离
 - OpenAPI 文档可访问
+- Actuator health / info / metrics 可访问
 - 参数校验错误响应
 - 统一成功 / 错误响应结构
 - 业务错误码
@@ -645,12 +707,50 @@ Content-Type: application/json
 
 ### 认证说明
 
-除 `/hello`、`/api/auth/register`、`/api/auth/login`、`/h2-console/**`、`/v3/api-docs/**` 和 `/swagger-ui/**` 外，其他接口都需要登录。
+除 `/hello`、`/api/auth/register`、`/api/auth/login`、`/actuator/health`、`/actuator/info`、`/actuator/metrics/**`、`/h2-console/**`、`/v3/api-docs/**` 和 `/swagger-ui/**` 外，其他接口都需要登录。
 
 访问 Todo API 时需要携带：
 
 ```http
 Authorization: Bearer <token>
+```
+
+### Actuator 接口
+
+```http
+GET /actuator/health
+GET /actuator/info
+GET /actuator/metrics
+GET /actuator/metrics/jvm.memory.used
+```
+
+Actuator 端点用于观察应用运行状态，不返回具体业务数据。
+
+### 查询 Todo 过期扫描任务状态
+
+```http
+GET /api/internal/jobs/todo-overdue
+Authorization: Bearer <token>
+```
+
+响应：
+
+```json
+{
+  "success": true,
+  "code": "OK",
+  "message": "成功",
+  "data": {
+    "jobName": "todo-overdue",
+    "lastRunDate": "2026-08-21",
+    "lastRunAt": "2026-08-21T09:00:00.123456",
+    "lastSuccess": true,
+    "lastProcessedCount": 3,
+    "lastDurationMs": 18,
+    "lastErrorMessage": null
+  },
+  "path": null
+}
 ```
 
 ### 查询 Todo 列表
@@ -994,3 +1094,6 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 13 周：事务、Todo 操作日志和数据一致性](docs/week-13-learning.md)
 - [第 14 周：缓存、接口性能和查询优化](docs/week-14-learning.md)
 - [第 15 周：Redis 缓存入门和外部缓存配置](docs/week-15-learning.md)
+- [第 16 周：异步事件、线程池和操作日志解耦](docs/week-16-learning.md)
+- [第 17 周：定时任务、批处理和过期 Todo 扫描](docs/week-17-learning.md)
+- [第 18 周：Actuator 可观测性和后台任务状态查询](docs/week-18-learning.md)
