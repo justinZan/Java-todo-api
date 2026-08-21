@@ -6,5 +6,6 @@ public enum TodoAction {
     COMPLETED,
     UNCOMPLETED,
     DELETED,
-    RESTORED
+    RESTORED,
+    OVERDUE
 }
