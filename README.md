@@ -12,6 +12,7 @@
 - completedAt / deletedAt 生命周期字段
 - Todo 操作日志
 - Todo 操作日志事件驱动异步写入
+- Todo 过期扫描定时任务
 - Service 层事务管理
 - Todo 详情和操作日志本地缓存
 - 支持 Redis profile 作为外部缓存
@@ -43,6 +44,7 @@
 - Spring Cache
 - Spring Data Redis
 - Spring Event / Async
+- Spring Scheduling
 - Springdoc OpenAPI
 - Flyway
 - H2 Database
@@ -60,6 +62,7 @@ HTTP 请求
   -> Service
   -> Event Publisher
   -> Event Listener
+  -> Scheduled Job
   -> Repository
   -> Database
 
@@ -77,6 +80,7 @@ com.zading.todoapi
 ├── dto          请求 / 响应对象
 ├── event        应用内部事件、事件发布器和事件监听器
 ├── exception    自定义异常和全局异常处理
+├── job          定时任务和后台批处理入口
 ├── logging      请求日志过滤器
 ├── mapper       Entity 到 DTO 的转换
 ├── model        JPA Entity
@@ -112,7 +116,8 @@ java-todo-api/
 │   ├── week-13-learning.md
 │   ├── week-14-learning.md
 │   ├── week-15-learning.md
-│   └── week-16-learning.md
+│   ├── week-16-learning.md
+│   └── week-17-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -122,6 +127,7 @@ java-todo-api/
     │   │   ├── dto/
     │   │   ├── event/
     │   │   ├── exception/
+    │   │   ├── job/
     │   │   ├── logging/
     │   │   ├── mapper/
     │   │   ├── model/
@@ -361,6 +367,38 @@ src/main/java/com/zading/todoapi/config/AsyncConfig.java
 线程名前缀：todo-async-
 ```
 
+### 定时任务配置
+
+项目使用 Spring Scheduling 定时扫描过期 Todo：
+
+```text
+每天 09:00
+  -> 扫描 dueDate 早于今天、未完成、未删除的 Todo
+  -> 如果还没有 OVERDUE 日志，则发布 TodoActionLogEvent
+  -> 异步写入 Todo 操作日志
+```
+
+定时任务入口：
+
+```text
+src/main/java/com/zading/todoapi/job/TodoOverdueJob.java
+```
+
+默认配置：
+
+```properties
+app.todo.overdue-job.enabled=true
+app.todo.overdue-job.cron=0 0 9 * * *
+app.todo.overdue-job.zone=Asia/Shanghai
+app.todo.overdue-job.page-size=50
+```
+
+测试环境会关闭定时任务：
+
+```properties
+app.todo.overdue-job.enabled=false
+```
+
 ## 数据库迁移
 
 Flyway 迁移脚本目录：
@@ -448,6 +486,7 @@ src/test/java/com/zading/todoapi/
 - 恢复软删除 Todo
 - 查询 Todo 操作日志
 - Todo 操作日志事件驱动异步写入
+- Todo 过期扫描定时任务
 - Todo 详情缓存和缓存失效
 - Todo 操作日志缓存和缓存失效
 - Redis profile 配置和 TTL 设置

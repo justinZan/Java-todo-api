@@ -37,7 +37,7 @@ public abstract class AbstractApiTest {
     protected TodoActionLogRepository todoActionLogRepository;
 
     @Autowired
-    private TodoRepository todoRepository;
+    protected TodoRepository todoRepository;
 
     @Autowired
     protected UserRepository userRepository;

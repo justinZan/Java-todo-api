@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 public interface TodoRepository extends JpaRepository<Todo, Long> {
@@ -19,4 +20,6 @@ public interface TodoRepository extends JpaRepository<Todo, Long> {
     Optional<Todo> findByIdAndUserIdAndDeletedFalse(Long id, Long userId);
 
     Optional<Todo> findByIdAndUserId(Long id, Long userId);
+
+    Page<Todo> findByCompletedFalseAndDeletedFalseAndDueDateBefore(LocalDate dueDate, Pageable pageable);
 }

@@ -2,7 +2,12 @@ package com.zading.todoapi;
 
 import com.zading.todoapi.support.AbstractApiTest;
 import com.zading.todoapi.config.CacheNames;
+import com.zading.todoapi.model.AppUser;
+import com.zading.todoapi.model.Todo;
+import com.zading.todoapi.model.TodoPriority;
+import com.zading.todoapi.service.TodoOverdueService;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
@@ -13,6 +18,7 @@ import java.util.Map;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -23,6 +29,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class TodoApiTests extends AbstractApiTest {
+    @Autowired
+    private TodoOverdueService todoOverdueService;
+
     @Test
     void shouldCreateListUpdateToggleAndDeleteTodo() throws Exception {
         String token = authClient.registerAndLogin("zading", "123456");
@@ -362,6 +371,35 @@ class TodoApiTests extends AbstractApiTest {
     }
 
     @Test
+    void shouldRecordOverdueTodoActionLogByBatchJob() throws Exception {
+        String token = authClient.registerAndLogin("zading", "123456");
+        AppUser user = userRepository.findByUsername("zading").orElseThrow();
+
+        Todo overdueTodo = saveTodoDirectly(user, "已经过期的任务", false, false, LocalDate.now().minusDays(1));
+        saveTodoDirectly(user, "今天截止的任务", false, false, LocalDate.now());
+        saveTodoDirectly(user, "未来截止的任务", false, false, LocalDate.now().plusDays(1));
+        saveTodoDirectly(user, "已完成的过期任务", true, false, LocalDate.now().minusDays(1));
+        saveTodoDirectly(user, "已删除的过期任务", false, true, LocalDate.now().minusDays(1));
+
+        int recordedCount = todoOverdueService.recordOverdueTodos(LocalDate.now(), 2);
+
+        assertEquals(1, recordedCount);
+        waitUntilActionLogCount(overdueTodo.getId(), user.getId(), 1);
+
+        mockMvc.perform(get("/api/todos/{id}/logs", overdueTodo.getId())
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].action").value("OVERDUE"))
+                .andExpect(jsonPath("$.data[0].description").value("Todo 已过期"));
+
+        int repeatedRecordedCount = todoOverdueService.recordOverdueTodos(LocalDate.now(), 2);
+
+        assertEquals(0, repeatedRecordedCount);
+    }
+
+    @Test
     void shouldNotReturnOtherUsersTodoActionLogs() throws Exception {
         String userAToken = authClient.registerAndLogin("user-a", "123456");
         String userBToken = authClient.registerAndLogin("user-b", "123456");
@@ -502,5 +540,15 @@ class TodoApiTests extends AbstractApiTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("TODO_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("Todo 不存在，id = " + userATodoId));
+    }
+
+    private Todo saveTodoDirectly(AppUser user, String title, boolean completed, boolean deleted, LocalDate dueDate) {
+        Todo todo = new Todo(null, title, completed);
+        todo.setUser(user);
+        todo.setPriority(TodoPriority.MEDIUM);
+        todo.setDueDate(dueDate);
+        todo.setDeleted(deleted);
+
+        return todoRepository.save(todo);
     }
 }
