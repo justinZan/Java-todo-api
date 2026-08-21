@@ -2,7 +2,7 @@ package com.zading.todoapi.security;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Value;
+import com.zading.todoapi.config.properties.JwtProperties;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Mac;
@@ -18,22 +18,19 @@ public class JwtService {
     private static final String HMAC_ALGORITHM = "HmacSHA256";
 
     private final ObjectMapper objectMapper;
-    private final String secret;
-    private final long expirationMinutes;
+    private final JwtProperties jwtProperties;
 
     public JwtService(
             ObjectMapper objectMapper,
-            @Value("${app.jwt.secret}") String secret,
-            @Value("${app.jwt.expiration-minutes}") long expirationMinutes
+            JwtProperties jwtProperties
     ) {
         this.objectMapper = objectMapper;
-        this.secret = secret;
-        this.expirationMinutes = expirationMinutes;
+        this.jwtProperties = jwtProperties;
     }
 
     public String generateToken(String username) {
         Instant now = Instant.now();
-        Instant expiresAt = now.plusSeconds(expirationMinutes * 60);
+        Instant expiresAt = now.plusSeconds(jwtProperties.expirationMinutes() * 60);
 
         Map<String, Object> header = new LinkedHashMap<>();
         header.put("alg", "HS256");
@@ -121,7 +118,7 @@ public class JwtService {
     private String sign(String value) {
         try {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
-            SecretKeySpec key = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM);
+            SecretKeySpec key = new SecretKeySpec(jwtProperties.secret().getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM);
             mac.init(key);
             byte[] signature = mac.doFinal(value.getBytes(StandardCharsets.UTF_8));
             return Base64.getUrlEncoder().withoutPadding().encodeToString(signature);
