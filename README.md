@@ -18,6 +18,9 @@
 - Todo 详情和操作日志本地缓存
 - 支持 Redis profile 作为外部缓存
 - Actuator 健康检查、应用信息和运行指标
+- Actuator liveness / readiness 探针
+- dev / prod 多环境配置示例
+- 使用 `@ConfigurationProperties` 绑定业务配置
 - 统一 API 响应结构
 - 业务错误码
 - 请求 / 响应 DTO 分层
@@ -30,7 +33,7 @@
 - 支持 PostgreSQL profile
 - 提供 Docker Compose PostgreSQL 配置
 - Swagger / OpenAPI 接口文档
-- 请求日志记录
+- 带 requestId 的请求日志记录
 - 按功能拆分的 MockMvc 接口测试
 - GitHub Actions CI 配置
 
@@ -82,6 +85,7 @@ Entity
 ```text
 com.zading.todoapi
 ├── config       工程配置，例如 OpenAPI 配置
+│   └── properties 业务配置绑定对象
 ├── controller   HTTP 接口入口
 ├── dto          请求 / 响应对象
 ├── event        应用内部事件、事件发布器和事件监听器
@@ -124,7 +128,8 @@ java-todo-api/
 │   ├── week-15-learning.md
 │   ├── week-16-learning.md
 │   ├── week-17-learning.md
-│   └── week-18-learning.md
+│   ├── week-18-learning.md
+│   └── week-19-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -142,8 +147,10 @@ java-todo-api/
     │   │   ├── security/
     │   │   └── service/
     │   └── resources/
+    │       ├── application-dev.properties
     │       ├── application.properties
     │       ├── application-postgres.properties
+    │       ├── application-prod.properties
     │       ├── application-redis.properties
     │       └── db/migration/
     │           ├── V1__create_todos_table.sql
@@ -240,6 +247,66 @@ docker compose up -d postgres
 DB_USERNAME=postgres DB_PASSWORD=postgres mvn spring-boot:run -Dspring-boot.run.profiles=postgres
 ```
 
+### dev 配置
+
+开发环境配置文件：
+
+```text
+src/main/resources/application-dev.properties
+```
+
+dev profile 面向本地开发：
+
+```text
+保留 H2 Console
+开启 SQL 日志
+开启请求日志
+业务包日志级别为 DEBUG
+```
+
+启动方式：
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+### prod 配置
+
+生产环境配置文件：
+
+```text
+src/main/resources/application-prod.properties
+```
+
+prod profile 面向真实部署：
+
+```text
+关闭 H2 Console
+关闭 SQL 输出
+敏感配置从环境变量读取
+保留 Actuator 基础健康检查和探针
+```
+
+生产环境需要提供环境变量：
+
+```bash
+DB_URL=jdbc:postgresql://localhost:5432/java_todo_api
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+JWT_SECRET=your-strong-secret
+JWT_EXPIRATION_MINUTES=120
+```
+
+启动方式：
+
+```bash
+DB_URL=jdbc:postgresql://localhost:5432/java_todo_api \
+DB_USERNAME=postgres \
+DB_PASSWORD=your_password \
+JWT_SECRET=your-strong-secret \
+java -jar target/java-todo-api-1.0.0.jar --spring.profiles.active=prod
+```
+
 ### 测试配置
 
 测试配置文件：
@@ -266,6 +333,18 @@ JWT_SECRET=your-strong-secret
 JWT_EXPIRATION_MINUTES=120
 ```
 
+### 配置类绑定
+
+项目使用 `@ConfigurationProperties` 把业务配置绑定成 Java 对象：
+
+```text
+JwtProperties              app.jwt.*
+RequestLoggingProperties   app.request-logging.*
+TodoOverdueJobProperties   app.todo.overdue-job.*
+```
+
+这样业务代码不需要分散读取字符串配置 key，配置结构也更容易校验和维护。
+
 ### OpenAPI 配置
 
 接口文档地址：
@@ -286,6 +365,8 @@ http://localhost:8080/v3/api-docs
 
 ```text
 GET /actuator/health   应用健康状态
+GET /actuator/health/liveness   应用进程是否存活
+GET /actuator/health/readiness  应用是否准备好接收请求
 GET /actuator/info     应用基础信息
 GET /actuator/metrics  JVM、HTTP、进程等运行指标列表
 ```
@@ -295,6 +376,7 @@ GET /actuator/metrics  JVM、HTTP、进程等运行指标列表
 ```properties
 management.endpoints.web.exposure.include=health,info,metrics
 management.endpoint.health.show-details=never
+management.endpoint.health.probes.enabled=true
 management.info.env.enabled=true
 ```
 
@@ -318,13 +400,16 @@ management.health.redis.enabled=true
 
 ```properties
 app.request-logging.enabled=true
+app.request-logging.request-id-header=X-Request-Id
 ```
 
 日志会记录：
 
 ```text
-HTTP GET /api/todos -> 200 (12 ms)
+requestId=abc123 HTTP GET /api/todos -> 200 (12 ms)
 ```
+
+如果请求头中带了 `X-Request-Id`，系统会复用它；如果没有携带，系统会自动生成一个 UUID，并通过响应头返回。
 
 ### 缓存配置
 
@@ -561,6 +646,8 @@ src/test/java/com/zading/todoapi/
 - Todo 数据按用户隔离
 - OpenAPI 文档可访问
 - Actuator health / info / metrics 可访问
+- Actuator liveness / readiness 可访问
+- 请求日志 requestId 响应头
 - 参数校验错误响应
 - 统一成功 / 错误响应结构
 - 业务错误码
@@ -600,6 +687,22 @@ java -jar target/java-todo-api-1.0.0.jar
 ```bash
 DB_USERNAME=postgres DB_PASSWORD=your_password \
 java -jar target/java-todo-api-1.0.0.jar --spring.profiles.active=postgres
+```
+
+使用 dev profile 运行：
+
+```bash
+java -jar target/java-todo-api-1.0.0.jar --spring.profiles.active=dev
+```
+
+使用 prod profile 运行：
+
+```bash
+DB_URL=jdbc:postgresql://localhost:5432/java_todo_api \
+DB_USERNAME=postgres \
+DB_PASSWORD=your_password \
+JWT_SECRET=your-strong-secret \
+java -jar target/java-todo-api-1.0.0.jar --spring.profiles.active=prod
 ```
 
 ## API 文档
@@ -707,7 +810,7 @@ Content-Type: application/json
 
 ### 认证说明
 
-除 `/hello`、`/api/auth/register`、`/api/auth/login`、`/actuator/health`、`/actuator/info`、`/actuator/metrics/**`、`/h2-console/**`、`/v3/api-docs/**` 和 `/swagger-ui/**` 外，其他接口都需要登录。
+除 `/hello`、`/api/auth/register`、`/api/auth/login`、`/actuator/health/**`、`/actuator/info`、`/actuator/metrics/**`、`/h2-console/**`、`/v3/api-docs/**` 和 `/swagger-ui/**` 外，其他接口都需要登录。
 
 访问 Todo API 时需要携带：
 
@@ -719,6 +822,8 @@ Authorization: Bearer <token>
 
 ```http
 GET /actuator/health
+GET /actuator/health/liveness
+GET /actuator/health/readiness
 GET /actuator/info
 GET /actuator/metrics
 GET /actuator/metrics/jvm.memory.used
@@ -1097,3 +1202,4 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 16 周：异步事件、线程池和操作日志解耦](docs/week-16-learning.md)
 - [第 17 周：定时任务、批处理和过期 Todo 扫描](docs/week-17-learning.md)
 - [第 18 周：Actuator 可观测性和后台任务状态查询](docs/week-18-learning.md)
+- [第 19 周：生产化配置、启动方式和日志排查](docs/week-19-learning.md)
