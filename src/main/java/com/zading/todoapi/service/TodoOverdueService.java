@@ -25,21 +25,37 @@ public class TodoOverdueService {
     private final TodoActionLogRepository todoActionLogRepository;
     private final TodoEventPublisher todoEventPublisher;
     private final CacheManager cacheManager;
+    private final TodoOverdueJobStatusService todoOverdueJobStatusService;
 
     public TodoOverdueService(
             TodoRepository todoRepository,
             TodoActionLogRepository todoActionLogRepository,
             TodoEventPublisher todoEventPublisher,
-            CacheManager cacheManager
+            CacheManager cacheManager,
+            TodoOverdueJobStatusService todoOverdueJobStatusService
     ) {
         this.todoRepository = todoRepository;
         this.todoActionLogRepository = todoActionLogRepository;
         this.todoEventPublisher = todoEventPublisher;
         this.cacheManager = cacheManager;
+        this.todoOverdueJobStatusService = todoOverdueJobStatusService;
     }
 
     @Transactional
     public int recordOverdueTodos(LocalDate today, int pageSize) {
+        long start = System.nanoTime();
+
+        try {
+            int recordedCount = doRecordOverdueTodos(today, pageSize);
+            todoOverdueJobStatusService.recordSuccess(today, recordedCount, elapsedMs(start));
+            return recordedCount;
+        } catch (Exception ex) {
+            todoOverdueJobStatusService.recordFailure(today, elapsedMs(start), ex);
+            throw ex;
+        }
+    }
+
+    private int doRecordOverdueTodos(LocalDate today, int pageSize) {
         int normalizedPageSize = normalizePageSize(pageSize);
         Pageable pageable = PageRequest.of(0, normalizedPageSize, Sort.by("id").ascending());
         int recordedCount = 0;
@@ -62,6 +78,10 @@ public class TodoOverdueService {
         } while (page.hasNext());
 
         return recordedCount;
+    }
+
+    private long elapsedMs(long start) {
+        return (System.nanoTime() - start) / 1_000_000;
     }
 
     private int normalizePageSize(int pageSize) {
