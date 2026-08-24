@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
     TODO_NOT_FOUND(HttpStatus.NOT_FOUND, "Todo 不存在"),
+    TODO_ATTACHMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Todo 附件不存在"),
     DUPLICATE_USERNAME(HttpStatus.BAD_REQUEST, "用户名已存在"),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "用户名或密码错误"),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "请先登录"),

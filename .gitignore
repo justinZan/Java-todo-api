@@ -3,3 +3,4 @@ target/
 *.class
 data/
 *.db
+uploads/

@@ -11,6 +11,7 @@
 - Todo 软删除和恢复
 - completedAt / deletedAt 生命周期字段
 - Todo 操作日志
+- Todo 附件上传、列表、下载和删除
 - Todo 操作日志事件驱动异步写入
 - Todo 过期扫描定时任务
 - Todo 过期扫描任务状态查询
@@ -21,6 +22,7 @@
 - Actuator liveness / readiness 探针
 - dev / prod 多环境配置示例
 - 使用 `@ConfigurationProperties` 绑定业务配置
+- 本地文件存储配置和附件元数据管理
 - 统一 API 响应结构
 - 业务错误码
 - 请求 / 响应 DTO 分层
@@ -129,7 +131,8 @@ java-todo-api/
 │   ├── week-16-learning.md
 │   ├── week-17-learning.md
 │   ├── week-18-learning.md
-│   └── week-19-learning.md
+│   ├── week-19-learning.md
+│   └── week-20-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -157,13 +160,15 @@ java-todo-api/
     │           ├── V2__add_priority_and_due_date_to_todos.sql
     │           ├── V3__create_users_and_link_todos.sql
     │           ├── V4__add_todo_lifecycle_fields.sql
-    │           └── V5__create_todo_action_logs_table.sql
+    │           ├── V5__create_todo_action_logs_table.sql
+    │           └── V6__create_todo_attachments_table.sql
     └── test/
         ├── java/com/zading/todoapi/
         │   ├── ApplicationSmokeTests.java
         │   ├── ActuatorTests.java
         │   ├── AuthApiTests.java
         │   ├── OpenApiTests.java
+        │   ├── TodoAttachmentApiTests.java
         │   ├── TodoApiTests.java
         │   └── support/
         └── resources/
@@ -341,9 +346,36 @@ JWT_EXPIRATION_MINUTES=120
 JwtProperties              app.jwt.*
 RequestLoggingProperties   app.request-logging.*
 TodoOverdueJobProperties   app.todo.overdue-job.*
+FileStorageProperties      app.file-storage.*
 ```
 
 这样业务代码不需要分散读取字符串配置 key，配置结构也更容易校验和维护。
+
+### 文件存储配置
+
+Todo 附件使用本地文件系统存储真实文件，数据库只保存附件元信息。
+
+默认配置：
+
+```properties
+app.file-storage.root-location=uploads
+app.file-storage.max-file-size-bytes=5242880
+```
+
+说明：
+
+```text
+root-location       附件根目录
+max-file-size-bytes 单个附件最大字节数，默认 5MB
+```
+
+`uploads/` 已加入 `.gitignore`，不会提交到 Git 仓库。
+
+测试环境使用：
+
+```properties
+app.file-storage.root-location=target/test-uploads
+```
 
 ### OpenAPI 配置
 
@@ -559,6 +591,7 @@ V2__add_priority_and_due_date_to_todos.sql
 V3__create_users_and_link_todos.sql
 V4__add_todo_lifecycle_fields.sql
 V5__create_todo_action_logs_table.sql
+V6__create_todo_attachments_table.sql
 ```
 
 JPA 不负责自动修改表结构：
@@ -608,6 +641,7 @@ src/test/java/com/zading/todoapi/
 ├── ApplicationSmokeTests.java   应用冒烟测试
 ├── AuthApiTests.java            注册 / 登录接口测试
 ├── OpenApiTests.java            OpenAPI 文档测试
+├── TodoAttachmentApiTests.java  Todo 附件上传 / 下载接口测试
 ├── TodoApiTests.java            Todo 业务接口测试
 └── support/
     ├── AbstractApiTest.java     测试公共配置和数据清理
@@ -630,6 +664,12 @@ src/test/java/com/zading/todoapi/
 - 删除 Todo
 - 恢复软删除 Todo
 - 查询 Todo 操作日志
+- 上传 Todo 附件
+- 查询 Todo 附件列表
+- 下载 Todo 附件
+- 删除 Todo 附件
+- 空附件上传失败
+- Todo 附件用户隔离
 - Todo 操作日志事件驱动异步写入
 - Todo 过期扫描定时任务
 - Todo 过期扫描任务状态查询
@@ -854,6 +894,100 @@ Authorization: Bearer <token>
     "lastDurationMs": 18,
     "lastErrorMessage": null
   },
+  "path": null
+}
+```
+
+### 上传 Todo 附件
+
+```http
+POST /api/todos/{todoId}/attachments
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+```
+
+表单字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `file` | file | 是 | 要上传的附件文件 |
+
+响应：
+
+```json
+{
+  "success": true,
+  "code": "CREATED",
+  "message": "创建成功",
+  "data": {
+    "id": 1,
+    "todoId": 10,
+    "originalFilename": "note.txt",
+    "contentType": "text/plain",
+    "fileSize": 16,
+    "createdAt": "2026-08-21T14:30:00.123456"
+  },
+  "path": null
+}
+```
+
+### 查询 Todo 附件列表
+
+```http
+GET /api/todos/{todoId}/attachments
+Authorization: Bearer <token>
+```
+
+响应：
+
+```json
+{
+  "success": true,
+  "code": "OK",
+  "message": "成功",
+  "data": [
+    {
+      "id": 1,
+      "todoId": 10,
+      "originalFilename": "note.txt",
+      "contentType": "text/plain",
+      "fileSize": 16,
+      "createdAt": "2026-08-21T14:30:00.123456"
+    }
+  ],
+  "path": null
+}
+```
+
+### 下载 Todo 附件
+
+```http
+GET /api/todos/{todoId}/attachments/{attachmentId}/download
+Authorization: Bearer <token>
+```
+
+下载接口直接返回文件流，并设置：
+
+```http
+Content-Type: <文件类型>
+Content-Disposition: attachment
+```
+
+### 删除 Todo 附件
+
+```http
+DELETE /api/todos/{todoId}/attachments/{attachmentId}
+Authorization: Bearer <token>
+```
+
+响应：
+
+```json
+{
+  "success": true,
+  "code": "OK",
+  "message": "删除附件成功",
+  "data": null,
   "path": null
 }
 ```
@@ -1203,3 +1337,4 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 17 周：定时任务、批处理和过期 Todo 扫描](docs/week-17-learning.md)
 - [第 18 周：Actuator 可观测性和后台任务状态查询](docs/week-18-learning.md)
 - [第 19 周：生产化配置、启动方式和日志排查](docs/week-19-learning.md)
+- [第 20 周：文件上传、下载和 Todo 附件管理](docs/week-20-learning.md)

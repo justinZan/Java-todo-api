@@ -3,6 +3,7 @@ package com.zading.todoapi.support;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zading.todoapi.config.CacheNames;
 import com.zading.todoapi.repository.TodoActionLogRepository;
+import com.zading.todoapi.repository.TodoAttachmentRepository;
 import com.zading.todoapi.repository.TodoRepository;
 import com.zading.todoapi.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +15,9 @@ import org.springframework.cache.CacheManager;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.util.FileSystemUtils;
 
+import java.nio.file.Path;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.fail;
@@ -37,6 +40,9 @@ public abstract class AbstractApiTest {
     protected TodoActionLogRepository todoActionLogRepository;
 
     @Autowired
+    protected TodoAttachmentRepository todoAttachmentRepository;
+
+    @Autowired
     protected TodoRepository todoRepository;
 
     @Autowired
@@ -48,8 +54,10 @@ public abstract class AbstractApiTest {
     @BeforeEach
     void setUpApiTest() {
         todoActionLogRepository.deleteAll();
+        todoAttachmentRepository.deleteAll();
         todoRepository.deleteAll();
         userRepository.deleteAll();
+        FileSystemUtils.deleteRecursively(Path.of("target/test-uploads").toFile());
         clearCache(CacheNames.TODO_DETAIL);
         clearCache(CacheNames.TODO_LOGS);
         authClient = new AuthTestClient(mockMvc, objectMapper);
