@@ -40,6 +40,7 @@
 - Swagger / OpenAPI 接口文档
 - 带 requestId 的请求日志记录
 - 按功能拆分的 MockMvc 接口测试
+- JUnit 5 / Mockito Service 层单元测试
 - GitHub Actions CI 配置
 
 ## 技术栈
@@ -136,7 +137,8 @@ java-todo-api/
 │   ├── week-18-learning.md
 │   ├── week-19-learning.md
 │   ├── week-20-learning.md
-│   └── week-21-learning.md
+│   ├── week-21-learning.md
+│   └── week-22-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -165,8 +167,8 @@ java-todo-api/
     │           ├── V3__create_users_and_link_todos.sql
     │           ├── V4__add_todo_lifecycle_fields.sql
     │           ├── V5__create_todo_action_logs_table.sql
-│           ├── V6__create_todo_attachments_table.sql
-│           └── V7__add_user_role.sql
+    │           ├── V6__create_todo_attachments_table.sql
+    │           └── V7__add_user_role.sql
     └── test/
         ├── java/com/zading/todoapi/
         │   ├── ApplicationSmokeTests.java
@@ -176,6 +178,11 @@ java-todo-api/
         │   ├── RbacApiTests.java
         │   ├── TodoAttachmentApiTests.java
         │   ├── TodoApiTests.java
+        │   ├── service/
+        │   │   ├── AdminServiceTest.java
+        │   │   ├── AuthServiceTest.java
+        │   │   ├── TodoAttachmentServiceTest.java
+        │   │   └── TodoServiceTest.java
         │   └── support/
         └── resources/
             ├── mockito-extensions/
@@ -648,8 +655,14 @@ src/test/java/com/zading/todoapi/
 ├── ApplicationSmokeTests.java   应用冒烟测试
 ├── AuthApiTests.java            注册 / 登录接口测试
 ├── OpenApiTests.java            OpenAPI 文档测试
+├── RbacApiTests.java            角色和管理员接口测试
 ├── TodoAttachmentApiTests.java  Todo 附件上传 / 下载接口测试
 ├── TodoApiTests.java            Todo 业务接口测试
+├── service/
+│   ├── AdminServiceTest.java    AdminService 单元测试
+│   ├── AuthServiceTest.java     AuthService 单元测试
+│   ├── TodoAttachmentServiceTest.java
+│   └── TodoServiceTest.java     TodoService 单元测试
 └── support/
     ├── AbstractApiTest.java     测试公共配置和数据清理
     ├── AuthTestClient.java      认证接口测试辅助类
@@ -703,6 +716,16 @@ src/test/java/com/zading/todoapi/
 - 统一成功 / 错误响应结构
 - 业务错误码
 - 资源不存在错误响应
+- Service 层正常流程、异常和用户隔离单元测试
+- JWT 角色传递和密码校验单元测试
+- 管理员统计和软删除查询单元测试
+- 附件大小、路径安全和文件生命周期单元测试
+
+Service 单元测试可以单独运行：
+
+```bash
+mvn -q -Dtest=TodoServiceTest,AuthServiceTest,AdminServiceTest,TodoAttachmentServiceTest test
+```
 
 ## CI
 
@@ -1387,3 +1410,4 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 19 周：生产化配置、启动方式和日志排查](docs/week-19-learning.md)
 - [第 20 周：文件上传、下载和 Todo 附件管理](docs/week-20-learning.md)
 - [第 21 周：RBAC 角色权限控制与管理端接口](docs/week-21-learning.md)
+- [第 22 周：单元测试、Mock 和 Service 层测试](docs/week-22-learning.md)
