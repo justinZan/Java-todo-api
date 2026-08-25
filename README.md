@@ -1,12 +1,15 @@
 # Java Todo API
 
-基于 Spring Boot 的 Todo REST API，提供用户注册、登录认证、JWT 鉴权，以及 Todo 的创建、查询、修改、切换完成状态、删除、筛选等能力。
+基于 Spring Boot 的 Todo REST API，提供用户注册、登录认证、JWT 鉴权、RBAC 角色权限控制，以及 Todo 的创建、查询、修改、切换完成状态、删除、筛选等能力。
 
 ## 功能特性
 
 - RESTful Todo API
 - 用户注册和登录
 - JWT Token 鉴权
+- USER / ADMIN 角色权限控制
+- 管理员用户、Todo 和统计接口
+- 统一处理 401 未登录和 403 无权限响应
 - Todo 数据按用户隔离
 - Todo 软删除和恢复
 - completedAt / deletedAt 生命周期字段
@@ -132,7 +135,8 @@ java-todo-api/
 │   ├── week-17-learning.md
 │   ├── week-18-learning.md
 │   ├── week-19-learning.md
-│   └── week-20-learning.md
+│   ├── week-20-learning.md
+│   └── week-21-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -161,13 +165,15 @@ java-todo-api/
     │           ├── V3__create_users_and_link_todos.sql
     │           ├── V4__add_todo_lifecycle_fields.sql
     │           ├── V5__create_todo_action_logs_table.sql
-    │           └── V6__create_todo_attachments_table.sql
+│           ├── V6__create_todo_attachments_table.sql
+│           └── V7__add_user_role.sql
     └── test/
         ├── java/com/zading/todoapi/
         │   ├── ApplicationSmokeTests.java
         │   ├── ActuatorTests.java
         │   ├── AuthApiTests.java
         │   ├── OpenApiTests.java
+        │   ├── RbacApiTests.java
         │   ├── TodoAttachmentApiTests.java
         │   ├── TodoApiTests.java
         │   └── support/
@@ -592,6 +598,7 @@ V3__create_users_and_link_todos.sql
 V4__add_todo_lifecycle_fields.sql
 V5__create_todo_action_logs_table.sql
 V6__create_todo_attachments_table.sql
+V7__add_user_role.sql
 ```
 
 JPA 不负责自动修改表结构：
@@ -654,9 +661,13 @@ src/test/java/com/zading/todoapi/
 - 健康检查接口
 - 用户注册
 - 用户登录
+- 新注册用户默认 USER 角色
 - 重复用户名注册失败
 - 错误密码登录失败
 - 未登录访问 Todo 返回 401
+- 未登录访问管理员接口返回 401
+- 普通用户访问管理员接口返回 403
+- 管理员查询用户、Todo 和统计数据
 - 创建 Todo
 - 查询 Todo 列表
 - 修改 Todo
@@ -785,6 +796,7 @@ Content-Type: application/json
   "data": {
     "id": 1,
     "username": "zading",
+    "role": "USER",
     "createdAt": "2026-08-12T10:00:00.123456"
   },
   "path": null
@@ -822,6 +834,42 @@ Content-Type: application/json
 }
 ```
 
+### 管理员接口
+
+管理员接口统一位于 `/api/admin/**`，只有 `ADMIN` 角色可以访问。
+
+```http
+GET /api/admin/users?page=0&size=10&sort=id,asc
+Authorization: Bearer <admin-token>
+```
+
+```http
+GET /api/admin/todos?page=0&size=10&sort=id,asc
+Authorization: Bearer <admin-token>
+```
+
+默认不返回软删除 Todo；管理员可以通过 `includeDeleted=true` 查看：
+
+```http
+GET /api/admin/todos?includeDeleted=true
+Authorization: Bearer <admin-token>
+```
+
+```http
+GET /api/admin/statistics
+Authorization: Bearer <admin-token>
+```
+
+普通注册用户默认是 `USER`，公开注册接口不会接收 `role` 字段。学习环境可以先注册用户，再执行：
+
+```sql
+UPDATE users SET role = 'ADMIN' WHERE username = 'zading';
+```
+
+修改角色后需要重新登录，获得包含新角色的 JWT。
+
+未登录请求返回 `401 UNAUTHORIZED`，普通用户请求管理员接口返回 `403 FORBIDDEN`。
+
 ### 统一响应结构
 
 除 `/hello` 健康检查接口外，业务 API 统一使用下面的响应结构：
@@ -850,7 +898,7 @@ Content-Type: application/json
 
 ### 认证说明
 
-除 `/hello`、`/api/auth/register`、`/api/auth/login`、`/actuator/health/**`、`/actuator/info`、`/actuator/metrics/**`、`/h2-console/**`、`/v3/api-docs/**` 和 `/swagger-ui/**` 外，其他接口都需要登录。
+除 `/hello`、`/api/auth/register`、`/api/auth/login`、`/actuator/health/**`、`/actuator/info`、`/actuator/metrics/**`、`/h2-console/**`、`/v3/api-docs/**` 和 `/swagger-ui/**` 外，其他接口都需要登录。`/api/admin/**` 还需要 `ADMIN` 角色。
 
 访问 Todo API 时需要携带：
 
@@ -1338,3 +1386,4 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 18 周：Actuator 可观测性和后台任务状态查询](docs/week-18-learning.md)
 - [第 19 周：生产化配置、启动方式和日志排查](docs/week-19-learning.md)
 - [第 20 周：文件上传、下载和 Todo 附件管理](docs/week-20-learning.md)
+- [第 21 周：RBAC 角色权限控制与管理端接口](docs/week-21-learning.md)

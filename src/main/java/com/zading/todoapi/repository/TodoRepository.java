@@ -9,6 +9,16 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 public interface TodoRepository extends JpaRepository<Todo, Long> {
+    Page<Todo> findByDeletedFalse(Pageable pageable);
+
+    long countByDeletedFalse();
+
+    long countByDeletedFalseAndCompletedTrue();
+
+    long countByDeletedFalseAndCompletedFalse();
+
+    long countByDeletedTrue();
+
     Page<Todo> findByUserIdAndDeletedFalse(Long userId, Pageable pageable);
 
     Page<Todo> findByUserIdAndCompletedAndDeletedFalse(Long userId, boolean completed, Pageable pageable);

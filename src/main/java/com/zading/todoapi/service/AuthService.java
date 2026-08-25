@@ -45,7 +45,7 @@ public class AuthService {
             throw new UnauthorizedException("用户名或密码错误");
         }
 
-        return new LoginResponse(jwtService.generateToken(user.getUsername()));
+        return new LoginResponse(jwtService.generateToken(user.getUsername(), user.getRole()));
     }
 
     private String normalizeUsername(String username) {
@@ -57,6 +57,6 @@ public class AuthService {
     }
 
     private UserResponse toResponse(AppUser user) {
-        return new UserResponse(user.getId(), user.getUsername(), user.getCreatedAt());
+        return new UserResponse(user.getId(), user.getUsername(), user.getRole(), user.getCreatedAt());
     }
 }

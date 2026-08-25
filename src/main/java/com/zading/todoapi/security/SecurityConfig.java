@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -22,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -50,18 +52,43 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**"
                         ).permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
-                .exceptionHandling(exception -> exception.authenticationEntryPoint((request, response, authException) -> {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    response.getWriter().write(objectMapper.writeValueAsString(
-                            ApiResponse.error(ErrorCode.UNAUTHORIZED, "请先登录", request.getRequestURI())
-                    ));
-                }))
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> writeError(
+                                objectMapper,
+                                response,
+                                HttpServletResponse.SC_UNAUTHORIZED,
+                                ErrorCode.UNAUTHORIZED,
+                                "请先登录",
+                                request.getRequestURI()
+                        ))
+                        .accessDeniedHandler((request, response, accessDeniedException) -> writeError(
+                                objectMapper,
+                                response,
+                                HttpServletResponse.SC_FORBIDDEN,
+                                ErrorCode.FORBIDDEN,
+                                "没有权限访问该资源",
+                                request.getRequestURI()
+                        ))
+                )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
+
+    private void writeError(
+            ObjectMapper objectMapper,
+            HttpServletResponse response,
+            int status,
+            ErrorCode errorCode,
+            String message,
+            String path
+    ) throws java.io.IOException {
+        response.setStatus(status);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write(objectMapper.writeValueAsString(ApiResponse.error(errorCode, message, path)));
     }
 
     @Bean
