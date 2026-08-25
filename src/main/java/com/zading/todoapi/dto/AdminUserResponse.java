@@ -4,17 +4,25 @@ import com.zading.todoapi.model.UserRole;
 
 import java.time.LocalDateTime;
 
-public class UserResponse {
+public class AdminUserResponse {
     private Long id;
     private String username;
     private UserRole role;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
-    public UserResponse(Long id, String username, UserRole role, LocalDateTime createdAt) {
+    public AdminUserResponse(
+            Long id,
+            String username,
+            UserRole role,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
+    ) {
         this.id = id;
         this.username = username;
         this.role = role;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     public Long getId() {
@@ -31,5 +39,9 @@ public class UserResponse {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 }

@@ -3,6 +3,7 @@ package com.zading.todoapi.security;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zading.todoapi.config.properties.JwtProperties;
+import com.zading.todoapi.model.UserRole;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Mac;
@@ -29,6 +30,10 @@ public class JwtService {
     }
 
     public String generateToken(String username) {
+        return generateToken(username, UserRole.USER);
+    }
+
+    public String generateToken(String username, UserRole role) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(jwtProperties.expirationMinutes() * 60);
 
@@ -38,6 +43,7 @@ public class JwtService {
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("sub", username);
+        payload.put("role", role.name());
         payload.put("iat", now.getEpochSecond());
         payload.put("exp", expiresAt.getEpochSecond());
 
@@ -58,6 +64,28 @@ public class JwtService {
 
     public boolean isTokenValid(String token, String username) {
         return extractUsername(token).equals(username) && !isExpired(token) && hasValidSignature(token);
+    }
+
+    public boolean isTokenValid(String token, String username, UserRole role) {
+        return extractUsername(token).equals(username)
+                && extractRole(token) == role
+                && !isExpired(token)
+                && hasValidSignature(token);
+    }
+
+    public UserRole extractRole(String token) {
+        Map<String, Object> payload = parsePayload(token);
+        Object role = payload.get("role");
+
+        if (role == null) {
+            throw new IllegalArgumentException("token 中缺少用户角色");
+        }
+
+        try {
+            return UserRole.valueOf(role.toString());
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("token 中的用户角色不正确", exception);
+        }
     }
 
     private boolean isExpired(String token) {
