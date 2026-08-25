@@ -160,7 +160,14 @@ public class TodoController {
         }
 
         Sort.Direction sortDirection = parseDirection(direction);
-        return Sort.by(sortDirection, field);
+        Sort requestedSort = Sort.by(sortDirection, field);
+
+        // 非唯一字段排序时补充 id，保证分页翻页时顺序稳定。
+        if (!"id".equals(field)) {
+            requestedSort = requestedSort.and(Sort.by(Sort.Direction.ASC, "id"));
+        }
+
+        return requestedSort;
     }
 
     private Sort.Direction parseDirection(String direction) {

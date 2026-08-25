@@ -3,6 +3,7 @@ package com.zading.todoapi.service;
 import com.zading.todoapi.dto.AdminStatisticsResponse;
 import com.zading.todoapi.dto.AdminTodoResponse;
 import com.zading.todoapi.dto.AdminUserResponse;
+import com.zading.todoapi.dto.TodoStatistics;
 import com.zading.todoapi.model.AppUser;
 import com.zading.todoapi.model.Todo;
 import com.zading.todoapi.model.TodoPriority;
@@ -79,11 +80,7 @@ class AdminServiceTest {
     @Test
     void shouldCollectTodoStatistics() {
         when(userRepository.count()).thenReturn(3L);
-        when(todoRepository.count()).thenReturn(10L);
-        when(todoRepository.countByDeletedFalse()).thenReturn(8L);
-        when(todoRepository.countByDeletedFalseAndCompletedTrue()).thenReturn(5L);
-        when(todoRepository.countByDeletedFalseAndCompletedFalse()).thenReturn(3L);
-        when(todoRepository.countByDeletedTrue()).thenReturn(2L);
+        when(todoRepository.getStatistics()).thenReturn(new TodoStatistics(10L, 8L, 5L, 3L, 2L));
 
         AdminStatisticsResponse result = adminService.getStatistics();
 
@@ -93,6 +90,7 @@ class AdminServiceTest {
         assertEquals(5L, result.getCompletedTodos());
         assertEquals(3L, result.getPendingTodos());
         assertEquals(2L, result.getDeletedTodos());
+        verify(todoRepository).getStatistics();
     }
 
     private AppUser user(Long id, String username, UserRole role) {

@@ -41,6 +41,7 @@
 - 带 requestId 的请求日志记录
 - 按功能拆分的 MockMvc 接口测试
 - JUnit 5 / Mockito Service 层单元测试
+- 查询索引、聚合统计和 EXPLAIN 性能测试
 - GitHub Actions CI 配置
 
 ## 技术栈
@@ -136,9 +137,10 @@ java-todo-api/
 │   ├── week-17-learning.md
 │   ├── week-18-learning.md
 │   ├── week-19-learning.md
-│   ├── week-20-learning.md
-│   ├── week-21-learning.md
-│   └── week-22-learning.md
+    │   ├── week-20-learning.md
+    │   ├── week-21-learning.md
+    │   ├── week-22-learning.md
+    │   └── week-23-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -168,7 +170,8 @@ java-todo-api/
     │           ├── V4__add_todo_lifecycle_fields.sql
     │           ├── V5__create_todo_action_logs_table.sql
     │           ├── V6__create_todo_attachments_table.sql
-    │           └── V7__add_user_role.sql
+    │           ├── V7__add_user_role.sql
+    │           └── V8__add_todo_query_indexes.sql
     └── test/
         ├── java/com/zading/todoapi/
         │   ├── ApplicationSmokeTests.java
@@ -176,6 +179,7 @@ java-todo-api/
         │   ├── AuthApiTests.java
         │   ├── OpenApiTests.java
         │   ├── RbacApiTests.java
+        │   ├── TodoQueryOptimizationTests.java
         │   ├── TodoAttachmentApiTests.java
         │   ├── TodoApiTests.java
         │   ├── service/
@@ -656,6 +660,7 @@ src/test/java/com/zading/todoapi/
 ├── AuthApiTests.java            注册 / 登录接口测试
 ├── OpenApiTests.java            OpenAPI 文档测试
 ├── RbacApiTests.java            角色和管理员接口测试
+├── TodoQueryOptimizationTests.java 索引、聚合查询和 EXPLAIN 测试
 ├── TodoAttachmentApiTests.java  Todo 附件上传 / 下载接口测试
 ├── TodoApiTests.java            Todo 业务接口测试
 ├── service/
@@ -720,11 +725,18 @@ src/test/java/com/zading/todoapi/
 - JWT 角色传递和密码校验单元测试
 - 管理员统计和软删除查询单元测试
 - 附件大小、路径安全和文件生命周期单元测试
+- Todo 查询索引、聚合统计和执行计划测试
 
 Service 单元测试可以单独运行：
 
 ```bash
 mvn -q -Dtest=TodoServiceTest,AuthServiceTest,AdminServiceTest,TodoAttachmentServiceTest test
+```
+
+查询优化测试可以单独运行：
+
+```bash
+mvn -q -Dtest=TodoQueryOptimizationTests test
 ```
 
 ## CI
@@ -1411,3 +1423,4 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 20 周：文件上传、下载和 Todo 附件管理](docs/week-20-learning.md)
 - [第 21 周：RBAC 角色权限控制与管理端接口](docs/week-21-learning.md)
 - [第 22 周：单元测试、Mock 和 Service 层测试](docs/week-22-learning.md)
+- [第 23 周：查询优化、索引和慢 SQL 思维](docs/week-23-learning.md)

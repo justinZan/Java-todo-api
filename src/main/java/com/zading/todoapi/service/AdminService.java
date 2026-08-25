@@ -3,6 +3,7 @@ package com.zading.todoapi.service;
 import com.zading.todoapi.dto.AdminStatisticsResponse;
 import com.zading.todoapi.dto.AdminTodoResponse;
 import com.zading.todoapi.dto.AdminUserResponse;
+import com.zading.todoapi.dto.TodoStatistics;
 import com.zading.todoapi.model.Todo;
 import com.zading.todoapi.repository.TodoRepository;
 import com.zading.todoapi.repository.UserRepository;
@@ -56,13 +57,15 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public AdminStatisticsResponse getStatistics() {
+        TodoStatistics statistics = todoRepository.getStatistics();
+
         return new AdminStatisticsResponse(
                 userRepository.count(),
-                todoRepository.count(),
-                todoRepository.countByDeletedFalse(),
-                todoRepository.countByDeletedFalseAndCompletedTrue(),
-                todoRepository.countByDeletedFalseAndCompletedFalse(),
-                todoRepository.countByDeletedTrue()
+                statistics.totalCountOrZero(),
+                statistics.activeCountOrZero(),
+                statistics.completedCountOrZero(),
+                statistics.incompleteCountOrZero(),
+                statistics.deletedCountOrZero()
         );
     }
 }
