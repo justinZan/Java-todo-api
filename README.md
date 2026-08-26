@@ -43,6 +43,9 @@
 - 按功能拆分的 MockMvc 接口测试
 - JUnit 5 / Mockito Service 层单元测试
 - 查询索引、聚合统计和 EXPLAIN 性能测试
+- 数据库 CHECK 约束和 Todo 乐观锁
+- 并发更新冲突返回 HTTP 409
+- 数据库关系、迁移和索引设计文档
 - GitHub Actions CI 配置
 
 ## 技术栈
@@ -173,9 +176,10 @@ java-todo-api/
     │           ├── V3__create_users_and_link_todos.sql
     │           ├── V4__add_todo_lifecycle_fields.sql
     │           ├── V5__create_todo_action_logs_table.sql
-    │           ├── V6__create_todo_attachments_table.sql
-    │           ├── V7__add_user_role.sql
-    │           └── V8__add_todo_query_indexes.sql
+│           ├── V6__create_todo_attachments_table.sql
+│           ├── V7__add_user_role.sql
+│           ├── V8__add_todo_query_indexes.sql
+│           └── V9__add_data_constraints_and_todo_version.sql
     └── test/
         ├── java/com/zading/todoapi/
         │   ├── ApplicationSmokeTests.java
@@ -184,6 +188,7 @@ java-todo-api/
         │   ├── OpenApiTests.java
         │   ├── RbacApiTests.java
         │   ├── TodoQueryOptimizationTests.java
+        │   ├── TodoDatabaseDesignTests.java
         │   ├── TodoAttachmentApiTests.java
         │   ├── TodoApiTests.java
         │   ├── service/
@@ -664,6 +669,8 @@ V4__add_todo_lifecycle_fields.sql
 V5__create_todo_action_logs_table.sql
 V6__create_todo_attachments_table.sql
 V7__add_user_role.sql
+V8__add_todo_query_indexes.sql
+V9__add_data_constraints_and_todo_version.sql
 ```
 
 JPA 不负责自动修改表结构：
@@ -673,6 +680,14 @@ spring.jpa.hibernate.ddl-auto=validate
 ```
 
 数据库表结构由 Flyway 管理，JPA 只校验 Entity 模型和数据库表结构是否匹配。
+
+第 25 周的数据库设计说明位于：
+
+```text
+docs/database-design.md
+```
+
+文档记录了表关系、数据库约束、索引、事务边界和 Todo 乐观锁设计。
 
 ## 启动项目
 
@@ -1479,3 +1494,4 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 22 周：单元测试、Mock 和 Service 层测试](docs/week-22-learning.md)
 - [第 23 周：查询优化、索引和慢 SQL 思维](docs/week-23-learning.md)
 - [第 24 周：Docker 基础和项目容器化](docs/week-24-learning.md)
+- [第 25 周：PostgreSQL 深入和数据库设计](docs/week-25-learning.md)

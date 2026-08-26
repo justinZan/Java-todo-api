@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -24,7 +25,7 @@ public class Todo {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String title;
 
     @Column(nullable = false)
@@ -52,6 +53,17 @@ public class Todo {
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    /**
+     * JPA 乐观锁版本号。
+     *
+     * <p>每次更新 Todo 时，Hibernate 会把版本号加 1，并在 UPDATE 条件中带上旧版本号。
+     * 如果两个请求同时修改同一条数据，后提交的请求会因为版本不匹配而失败，
+     * 避免后写入的数据静默覆盖先写入的数据。</p>
+     */
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     public Todo() {
     }
@@ -148,6 +160,10 @@ public class Todo {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Long getVersion() {
+        return version;
     }
 
     @PrePersist

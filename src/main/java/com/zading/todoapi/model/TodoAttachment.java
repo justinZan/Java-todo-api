@@ -28,13 +28,13 @@ public class TodoAttachment {
     @JoinColumn(name = "user_id", nullable = false)
     private AppUser user;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String originalFilename;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String storedFilename;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String contentType;
 
     @Column(nullable = false)
