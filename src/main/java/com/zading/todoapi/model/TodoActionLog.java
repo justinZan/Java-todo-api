@@ -31,10 +31,10 @@ public class TodoActionLog {
     private AppUser user;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private TodoAction action;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String description;
 
     @Column(nullable = false, updatable = false)
