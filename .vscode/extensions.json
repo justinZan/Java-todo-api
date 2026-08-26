@@ -1,7 +1,7 @@
 {
+  // 推荐安装 Java 语言支持和 Spring Boot 工具，VS Code 才能提供补全、运行和调试能力。
   "recommendations": [
     "vscjava.vscode-java-pack",
     "vmware.vscode-spring-boot"
   ]
 }
-

@@ -1,21 +1,68 @@
+# Compose 用于本地/学习环境一次启动 PostgreSQL 和 Java API。
+# 不安装 Docker 时，这个文件只是配置，不会自动执行任何操作。
 services:
   postgres:
+    # PostgreSQL 数据库服务；应用容器通过服务名 postgres 访问它。
     image: postgres:16-alpine
+    # 固定容器名，方便使用 docker logs 和 docker exec 排查问题。
     container_name: java-todo-api-postgres
+    # Docker 重启后自动恢复，手动停止的容器不会被无限重启。
     restart: unless-stopped
     environment:
+      # ${变量:-默认值}：优先读取 .env 或系统环境变量，没有时使用默认值。
       POSTGRES_DB: ${POSTGRES_DB:-java_todo_api}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    # 左边是宿主机端口，右边是 PostgreSQL 容器端口。
+    # app 容器不通过这个映射访问数据库，而是直接访问 postgres:5432。
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
+    # named volume 让数据库数据独立于容器生命周期。
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # 只有 pg_isready 检查通过，Compose 才认为数据库可以接受连接。
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-java_todo_api}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  app:
+    # 使用项目根目录中的 Dockerfile 构建 Java 21 应用镜像。
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # 构建后的本地镜像名称。
+    image: java-todo-api:local
+    container_name: java-todo-api
+    restart: unless-stopped
+    # 仅依赖启动顺序还不够；等待 postgres healthcheck 通过后再启动应用。
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # prod profile 使用 PostgreSQL，并关闭 H2 Console 和 SQL 输出。
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      # 容器之间使用服务名 postgres，不能写 localhost。
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-java_todo_api}
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # 敏感配置通过 .env 或部署平台注入；默认值只方便本地学习。
+      JWT_SECRET: ${JWT_SECRET:-replace-with-a-long-random-secret-at-least-32-chars}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-120}
+      # 容器内目录会挂载到 app_uploads volume。
+      FILE_STORAGE_ROOT: ${FILE_STORAGE_ROOT:-/app/uploads}
+      # JVM 根据容器内存限制设置最大堆内存比例。
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75.0}
+    # 左边是宿主机端口，右边是应用容器的 8080 端口。
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    # 附件不能只写入容器临时层，否则删除容器后会丢失。
+    volumes:
+      - app_uploads:/app/uploads
+
 volumes:
+  # PostgreSQL 数据持久化卷。
   postgres_data:
+  # Todo 附件持久化卷。
+  app_uploads:
