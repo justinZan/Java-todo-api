@@ -1,10 +1,11 @@
 {
+  // 告诉 VS Code 使用本机安装的 JDK 21；path 需要按个人电脑实际安装位置调整。
   "java.configuration.runtimes": [
     {
       "name": "JavaSE-21",
       "path": "/opt/homebrew/opt/openjdk@21",
+      // default=true 表示 Java 扩展默认用这个 JDK 编译和运行项目。
       "default": true
     }
   ]
 }
-

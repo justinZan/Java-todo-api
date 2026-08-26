@@ -4,6 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <!-- Spring Boot parent：统一管理常用依赖版本和 Maven 插件默认配置。 -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -18,79 +19,94 @@
     <description>Spring Boot Todo REST API learning project</description>
 
     <properties>
+        <!-- 编译和运行目标为 JDK 21；项目使用 Java 21 语法和 API。 -->
         <java.version>21</java.version>
     </properties>
 
     <dependencies>
+        <!-- Web：提供 Spring MVC、内嵌 Tomcat 和 REST Controller 能力。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- Validation：支持 @Valid、@NotBlank、@Min 等请求参数校验。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Security：提供登录鉴权、请求拦截和角色权限控制。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Data JPA：使用 Entity、Repository 和 Hibernate 访问关系型数据库。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
+        <!-- Cache：提供 @Cacheable、@CacheEvict 等缓存抽象。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
 
+        <!-- Data Redis：启用 redis profile 时作为外部缓存客户端使用。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <!-- Actuator：提供 health、info、metrics 等运行状态端点。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Springdoc：根据 Controller 生成 OpenAPI 文档和 Swagger UI。 -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>2.6.0</version>
         </dependency>
 
+        <!-- Flyway 核心：按版本顺序执行数据库迁移脚本。 -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
         </dependency>
 
+        <!-- Flyway PostgreSQL 支持：让 Flyway 可以处理 PostgreSQL 数据库。 -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
+        <!-- PostgreSQL JDBC 驱动：只在运行时连接 PostgreSQL，编译代码不直接依赖它。 -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
+        <!-- H2：默认本地数据库和测试数据库，不需要单独安装数据库服务。 -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
 
+        <!-- 生成配置元数据，帮助 IDE 提示 app.* 和自定义配置项。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
         </dependency>
 
+        <!-- 测试工具集合：JUnit 5、Mockito、Spring Test 和 MockMvc。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -99,6 +115,7 @@
     </dependencies>
 
     <build>
+        <!-- Spring Boot Maven 插件：打包可执行 JAR，并支持 spring-boot:run。 -->
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

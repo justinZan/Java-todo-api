@@ -1,0 +1,20 @@
+# Git 和 IDE 文件不参与 Docker 构建上下文。
+.git
+.github
+.vscode
+.idea
+.DS_Store
+
+# Dockerfile 会在构建阶段重新生成这些内容，不复制宿主机旧产物。
+target/
+# 本地 H2 数据库和上传文件不应该进入镜像。
+data/
+uploads/
+*.log
+*.iml
+
+# .env 可能包含密码和 JWT 密钥，不能发送到 Docker build context。
+.env
+# 文档不参与应用镜像构建，可减少构建上下文大小。
+docs/
+README.md

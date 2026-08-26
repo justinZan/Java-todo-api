@@ -2,6 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
+      // Cmd/Ctrl + Shift + P -> Tasks: Run Task -> Run Spring Boot
       "label": "Run Spring Boot",
       "type": "shell",
       "command": "mvn",
@@ -14,6 +15,7 @@
       "problemMatcher": []
     },
     {
+      // 执行完整 Maven 测试：mvn test
       "label": "Maven Test",
       "type": "shell",
       "command": "mvn",
@@ -26,6 +28,7 @@
       "problemMatcher": []
     },
     {
+      // 编译并打包可执行 JAR：mvn package
       "label": "Maven Package",
       "type": "shell",
       "command": "mvn",

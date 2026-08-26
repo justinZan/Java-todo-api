@@ -1,6 +1,13 @@
+# macOS 文件系统生成的隐藏文件。
 .DS_Store
+# Maven 编译输出，不应该提交到仓库。
 target/
+# 本地手动编译生成的 Java 字节码。
 *.class
+# H2 文件数据库和临时数据库文件。
 data/
 *.db
+# 本地附件文件，生产环境应使用独立存储或 volume。
 uploads/
+# 本地环境变量和敏感配置；仓库只提交 .env.example。
+.env

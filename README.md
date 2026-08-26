@@ -36,7 +36,8 @@
 - Flyway 数据库迁移
 - 默认使用 H2 本地数据库
 - 支持 PostgreSQL profile
-- 提供 Docker Compose PostgreSQL 配置
+- Java 21 多阶段 Dockerfile
+- Docker Compose 管理 Java 应用、PostgreSQL 和附件数据卷
 - Swagger / OpenAPI 接口文档
 - 带 requestId 的请求日志记录
 - 按功能拆分的 MockMvc 接口测试
@@ -62,7 +63,7 @@
 - Flyway
 - H2 Database
 - PostgreSQL Driver
-- Docker Compose（可选）
+- Docker / Docker Compose（可选）
 - GitHub Actions（可选）
 - JUnit 5 / MockMvc
 
@@ -110,11 +111,13 @@ com.zading.todoapi
 
 ```text
 java-todo-api/
+├── .dockerignore
 ├── .env.example
 ├── .github/
 │   └── workflows/
 │       └── ci.yml
 ├── docker-compose.yml
+├── Dockerfile
 ├── pom.xml
 ├── README.md
 ├── docs/
@@ -137,10 +140,11 @@ java-todo-api/
 │   ├── week-17-learning.md
 │   ├── week-18-learning.md
 │   ├── week-19-learning.md
-    │   ├── week-20-learning.md
-    │   ├── week-21-learning.md
-    │   ├── week-22-learning.md
-    │   └── week-23-learning.md
+│   ├── week-20-learning.md
+│   ├── week-21-learning.md
+│   ├── week-22-learning.md
+│   ├── week-23-learning.md
+│   └── week-24-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -268,6 +272,56 @@ docker compose up -d postgres
 ```bash
 DB_USERNAME=postgres DB_PASSWORD=postgres mvn spring-boot:run -Dspring-boot.run.profiles=postgres
 ```
+
+### Docker 容器化
+
+第 24 周提供了多阶段 `Dockerfile`：构建阶段使用 Maven + JDK 21，运行阶段只使用 JRE 21 和最终 JAR。应用容器默认使用 `prod` profile，并通过 Compose 内部服务名 `postgres` 连接数据库。
+
+先生成环境变量文件，并修改 `JWT_SECRET`：
+
+```bash
+cp .env.example .env
+```
+
+检查 Compose 配置：
+
+```bash
+docker compose config
+```
+
+构建并启动 Java 应用和 PostgreSQL：
+
+```bash
+docker compose up -d --build
+```
+
+查看服务状态和应用日志：
+
+```bash
+docker compose ps
+docker compose logs -f app
+```
+
+应用启动后可以访问：
+
+```text
+http://localhost:8080/swagger-ui.html
+http://localhost:8080/actuator/health
+```
+
+停止容器但保留数据库和附件数据：
+
+```bash
+docker compose down
+```
+
+如果明确需要删除数据卷，再执行：
+
+```bash
+docker compose down -v
+```
+
+注意：应用容器连接数据库时使用 `postgres:5432`，不能使用 `localhost:5432`。在容器内部，`localhost` 指向应用容器自己；`postgres` 才是 Compose 网络中的数据库服务名。附件保存到 `app_uploads` volume，容器删除后仍然可以保留。
 
 ### dev 配置
 
@@ -1424,3 +1478,4 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 21 周：RBAC 角色权限控制与管理端接口](docs/week-21-learning.md)
 - [第 22 周：单元测试、Mock 和 Service 层测试](docs/week-22-learning.md)
 - [第 23 周：查询优化、索引和慢 SQL 思维](docs/week-23-learning.md)
+- [第 24 周：Docker 基础和项目容器化](docs/week-24-learning.md)
