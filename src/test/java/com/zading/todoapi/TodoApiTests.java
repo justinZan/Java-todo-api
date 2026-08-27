@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -117,6 +118,36 @@ class TodoApiTests extends AbstractApiTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("TODO_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("Todo 不存在，id = " + todoId));
+    }
+
+    @Test
+    void shouldCreateTodoOnlyOnceForSameIdempotencyKey() throws Exception {
+        String token = authClient.registerAndLogin("zading", "123456");
+        String requestBody = objectMapper.writeValueAsString(Map.of("title", "幂等 Todo"));
+
+        MvcResult firstResult = mockMvc.perform(post("/api/todos")
+                        .header("Authorization", authClient.bearer(token))
+                        .header("Idempotency-Key", "todo-create-request-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.title").value("幂等 Todo"))
+                .andReturn();
+        Long firstTodoId = todoClient.readId(firstResult);
+
+        mockMvc.perform(post("/api/todos")
+                        .header("Authorization", authClient.bearer(token))
+                        .header("Idempotency-Key", "todo-create-request-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.id").value(firstTodoId))
+                .andExpect(jsonPath("$.data.title").value("幂等 Todo"));
+
+        mockMvc.perform(get("/api/todos")
+                        .header("Authorization", authClient.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1));
     }
 
     @Test

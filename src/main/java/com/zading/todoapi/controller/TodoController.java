@@ -6,11 +6,14 @@ import com.zading.todoapi.dto.PageResponse;
 import com.zading.todoapi.dto.TodoActionLogResponse;
 import com.zading.todoapi.dto.TodoResponse;
 import com.zading.todoapi.dto.UpdateTodoRequest;
+import com.zading.todoapi.config.properties.RedisProtectionProperties;
 import com.zading.todoapi.exception.BusinessException;
 import com.zading.todoapi.exception.ErrorCode;
 import com.zading.todoapi.mapper.TodoMapper;
 import com.zading.todoapi.model.Todo;
 import com.zading.todoapi.model.TodoActionLog;
+import com.zading.todoapi.redis.RateLimitDecision;
+import com.zading.todoapi.redis.RateLimiter;
 import com.zading.todoapi.security.AuthenticatedUser;
 import com.zading.todoapi.service.TodoService;
 import jakarta.validation.Valid;
@@ -31,6 +34,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -58,10 +62,19 @@ public class TodoController {
 
     private final TodoService todoService;
     private final TodoMapper todoMapper;
+    private final RateLimiter rateLimiter;
+    private final RedisProtectionProperties redisProperties;
 
-    public TodoController(TodoService todoService, TodoMapper todoMapper) {
+    public TodoController(
+            TodoService todoService,
+            TodoMapper todoMapper,
+            RateLimiter rateLimiter,
+            RedisProtectionProperties redisProperties
+    ) {
         this.todoService = todoService;
         this.todoMapper = todoMapper;
+        this.rateLimiter = rateLimiter;
+        this.redisProperties = redisProperties;
     }
 
     @GetMapping
@@ -101,13 +114,28 @@ public class TodoController {
     @PostMapping
     public ResponseEntity<ApiResponse<TodoResponse>> createTodo(
             @AuthenticationPrincipal AuthenticatedUser currentUser,
-            @Valid @RequestBody CreateTodoRequest request
+            @Valid @RequestBody CreateTodoRequest request,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey
     ) {
+        RateLimitDecision decision = rateLimiter.tryAcquire(
+                "rate-limit:todo-create:user:" + currentUser.getId(),
+                redisProperties.todoCreateLimit(),
+                redisProperties.rateLimitWindow()
+        );
+
+        if (!decision.allowed()) {
+            throw new BusinessException(
+                    ErrorCode.RATE_LIMIT_EXCEEDED,
+                    "Todo 创建请求过于频繁，请在 " + decision.retryAfterSeconds() + " 秒后重试"
+            );
+        }
+
         Todo createdTodo = todoService.addTodo(
                 currentUser.getId(),
                 request.getTitle(),
                 request.getPriority(),
-                request.getDueDate()
+                request.getDueDate(),
+                idempotencyKey
         );
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()

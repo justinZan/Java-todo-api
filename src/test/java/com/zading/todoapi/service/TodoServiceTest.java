@@ -9,7 +9,13 @@ import com.zading.todoapi.model.TodoPriority;
 import com.zading.todoapi.repository.TodoActionLogRepository;
 import com.zading.todoapi.repository.TodoRepository;
 import com.zading.todoapi.repository.UserRepository;
+import com.zading.todoapi.config.properties.RedisProtectionProperties;
+import com.zading.todoapi.exception.BusinessException;
+import com.zading.todoapi.exception.ErrorCode;
+import com.zading.todoapi.redis.IdempotencyClaim;
+import com.zading.todoapi.redis.IdempotencyStore;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -20,6 +26,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,8 +58,30 @@ class TodoServiceTest {
     @Mock
     private TodoEventPublisher todoEventPublisher;
 
-    @InjectMocks
+    @Mock
+    private IdempotencyStore idempotencyStore;
+
+    private final RedisProtectionProperties redisProperties = new RedisProtectionProperties(
+            Duration.ofMinutes(5),
+            Duration.ofMinutes(10),
+            Duration.ofMinutes(1),
+            5,
+            30
+    );
+
     private TodoService todoService;
+
+    @BeforeEach
+    void setUp() {
+        todoService = new TodoService(
+                todoRepository,
+                todoActionLogRepository,
+                userRepository,
+                todoEventPublisher,
+                idempotencyStore,
+                redisProperties
+        );
+    }
 
     @Test
     void shouldUseCombinedFilterWhenCompletedAndKeywordAreProvided() {
@@ -121,6 +150,47 @@ class TodoServiceTest {
         assertEquals("当前用户不存在", exception.getMessage());
         verify(todoRepository, never()).save(any(Todo.class));
         verify(todoEventPublisher, never()).publishActionLog(any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldReplayTodoWhenIdempotencyKeyWasCompleted() {
+        Todo savedTodo = todo(10L, 1L, "只创建一次");
+        when(idempotencyStore.tryClaim(any(), any())).thenReturn(IdempotencyClaim.completed("10"));
+        when(todoRepository.findByIdAndUserIdAndDeletedFalse(10L, 1L)).thenReturn(Optional.of(savedTodo));
+
+        Todo result = todoService.addTodo(1L, "不会再次创建", TodoPriority.HIGH, null, "request-001");
+
+        assertSame(savedTodo, result);
+        verify(userRepository, never()).findById(any());
+        verify(todoRepository, never()).save(any(Todo.class));
+    }
+
+    @Test
+    void shouldRejectSameIdempotencyKeyWhileRequestIsProcessing() {
+        when(idempotencyStore.tryClaim(any(), any())).thenReturn(IdempotencyClaim.processing());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> todoService.addTodo(1L, "任务", TodoPriority.MEDIUM, null, "request-002")
+        );
+
+        assertEquals(ErrorCode.IDEMPOTENCY_REQUEST_IN_PROGRESS, exception.getErrorCode());
+        verify(todoRepository, never()).save(any(Todo.class));
+    }
+
+    @Test
+    void shouldStoreTodoIdAfterFirstIdempotentCreate() {
+        AppUser user = user(1L);
+        Todo savedTodo = todo(10L, 1L, "只创建一次");
+        when(idempotencyStore.tryClaim(any(), any())).thenReturn(IdempotencyClaim.claimed("owner-001"));
+        when(idempotencyStore.complete(any(), any(), any(), any())).thenReturn(true);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(todoRepository.save(any(Todo.class))).thenReturn(savedTodo);
+
+        Todo result = todoService.addTodo(1L, "只创建一次", TodoPriority.MEDIUM, null, "request-003");
+
+        assertSame(savedTodo, result);
+        verify(idempotencyStore).complete(any(), eq("owner-001"), eq("10"), eq(Duration.ofMinutes(10)));
     }
 
     @Test
