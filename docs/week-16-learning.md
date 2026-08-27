@@ -795,3 +795,44 @@ Spring Event 是应用内部事件机制，不需要额外服务。Kafka 是外�
 ### 12. 第十六周最重要的工程化思想是什么？
 
 主业务和附属业务分离。主业务保证核心数据正确，附属业务通过事件异步处理。
+
+## 代码精读补充
+
+### 1. 事件对象只携带必要信息
+
+```java
+public record TodoActionLogEvent(
+        Long todoId,
+        Long userId,
+        TodoAction action,
+        String description
+) {
+}
+```
+
+`record` 适合表示不可变事件数据。事件传 id 而不是整个 Entity，可以避免把懒加载对象、持久化上下文和过多字段带到异步线程。
+
+### 2. 发布和监听是两个不同职责
+
+```text
+TodoService
+  -> todoEventPublisher.publish(...)
+
+TodoActionLogEventListener
+  -> 接收事件
+  -> TodoActionLogService.record(...)
+```
+
+Publisher 只负责发出通知，Listener 决定如何处理通知。这样 TodoService 不需要知道日志表、线程池和日志保存细节。
+
+### 3. 为什么是 `AFTER_COMMIT + @Async`
+
+```java
+@Async("todoTaskExecutor")
+@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+public void handle(TodoActionLogEvent event) {
+    todoActionLogService.record(event);
+}
+```
+
+`AFTER_COMMIT` 保证主事务成功后才处理，`@Async` 让监听逻辑使用独立线程。异步失败不会自动影响已经返回的主请求，所以生产环境还需要日志、监控和重试策略。

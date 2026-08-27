@@ -540,3 +540,41 @@ H2 / Flyway 集成验证
 ```
 
 下一周进入第 23 周：查询优化、数据库索引和慢 SQL 排查思维。
+
+## 代码精读补充
+
+### 1. 一个 Service 单元测试的四个阶段
+
+```java
+@Test
+void shouldReturnTodoForOwner() {
+    when(todoRepository.findByIdAndUserIdAndDeletedFalse(1L, 10L))
+            .thenReturn(Optional.of(todo));
+
+    Todo result = service.getTodo(10L, 1L);
+
+    assertEquals(todo, result);
+    verify(todoRepository).findByIdAndUserIdAndDeletedFalse(1L, 10L);
+}
+```
+
+先准备 Mock 返回值，再调用被测方法，然后断言结果，最后用 `verify` 检查依赖调用。`assertEquals` 验证“结果是什么”，`verify` 验证“过程怎么做”。
+
+### 2. `@Mock` 和 `@InjectMocks` 的关系
+
+```text
+@Mock TodoRepository
+@Mock TodoEventPublisher
+        ↓ 注入
+@InjectMocks TodoService
+```
+
+Mockito 创建假的依赖，Service 使用这些假的依赖运行。当前项目的 Service 测试也可以手动构造 Service，这在构造函数参数较多或需要使用真实配置对象时更直观。
+
+### 3. 为什么要验证 `never()`
+
+```java
+verify(todoRepository, never()).save(any());
+```
+
+异常分支不只要验证“抛了异常”，还要确认没有发生错误写入。例如用户不是 Todo 所有者时，不能因为异常处理顺序错误而先保存数据。

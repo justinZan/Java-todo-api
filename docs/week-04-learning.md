@@ -740,3 +740,37 @@ MockMvc  测试代码自动执行
 ```
 
 项目越复杂，越需要 MockMvc 这类自动化测试。
+
+## 代码精读补充
+
+### 1. Controller 方法如何变成 HTTP 接口
+
+```java
+@RestController
+@RequestMapping("/api/todos")
+public class TodoController {
+    @GetMapping("/{id}")
+    public TodoResponse getTodo(@PathVariable Long id) {
+        return todoService.getTodo(id);
+    }
+}
+```
+
+`@RestController` 把类注册为 Web 接口组件；`@RequestMapping` 提供公共路径；`@GetMapping` 表示只处理 GET；`@PathVariable` 把 URL 中的 `1` 转成方法参数 `id`。Spring 根据返回对象自动序列化 JSON。
+
+### 2. POST 请求的执行顺序
+
+```text
+JSON 请求体
+  -> @RequestBody 转成 CreateTodoRequest
+  -> Controller 调用 todoService.addTodo
+  -> Service 创建 Todo
+  -> Repository 保存
+  -> 返回 TodoResponse
+```
+
+Controller 是 HTTP 适配层，不应该在里面写“标题不能为空”或操作集合。这样以后更换入口（例如定时任务、消息队列）时，业务规则仍然只有一份。
+
+### 3. 为什么测试用 MockMvc
+
+MockMvc 在不启动真实端口的情况下模拟 HTTP 请求，但仍然经过 Controller、参数绑定和异常处理。它比直接调用 Controller 方法更接近真实接口，比启动完整外部环境更快。

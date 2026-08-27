@@ -903,3 +903,34 @@ enum 可以限制取值范围，避免字符串拼写错误，让代码更安全
 ### 15. 本周最重要的工程化思想是什么？
 
 业务动作要有完整性。只改当前状态是不够的，真实系统还要考虑历史记录、审计、用户隔离和数据一致性。
+
+## 代码精读补充
+
+### 1. 一次业务操作为什么要包含日志
+
+```java
+Todo savedTodo = todoRepository.save(todo);
+addActionLog(savedTodo, user, TodoAction.CREATED, "创建 Todo");
+return savedTodo;
+```
+
+保存 Todo 后才有数据库 id，日志才能通过 `todo_id` 建立关联。`addActionLog` 统一创建用户、Todo、动作、描述和时间，避免每个业务方法重复组装日志对象。
+
+### 2. 事务解决什么问题
+
+```text
+事务开始
+  -> Todo 保存成功
+  -> 日志保存失败
+  -> 整体回滚
+```
+
+如果 Todo 已经保存而日志失败，当前状态和历史记录就不一致。把相关数据库写入放在 Service 的 `@Transactional` 方法中，可以让它们一起成功或一起回滚。
+
+### 3. 查询日志也要做用户隔离
+
+```java
+todoActionLogRepository.findByTodoIdAndUserIdOrderByCreatedAtDesc(...)
+```
+
+日志虽然是附属表，但同样属于用户数据。只根据 `todoId` 查询会给越权访问留下机会，所以日志查询也要带 `userId`。

@@ -827,3 +827,45 @@ ddl-auto=validate
 - 不污染开发数据库
 - 每次测试环境更可控
 - 更接近真实启动流程
+
+## 代码精读补充
+
+### 1. Flyway 和 JPA 的边界
+
+```text
+Flyway
+  -> 执行 V1、V2、V3 ... SQL
+  -> 记录 flyway_schema_history
+
+JPA
+  -> 根据 Entity 读写数据
+  -> validate 校验表结构
+```
+
+`ddl-auto=validate` 不会帮你新增字段。增加列时必须新建 migration，应用启动时先完成数据库迁移，再创建 JPA 的持久化上下文。
+
+### 2. Entity 生命周期方法
+
+```java
+@PrePersist
+void onCreate() {
+    LocalDateTime now = LocalDateTime.now();
+    createdAt = now;
+    updatedAt = now;
+}
+
+@PreUpdate
+void onUpdate() {
+    updatedAt = LocalDateTime.now();
+}
+```
+
+`@PrePersist` 在 INSERT 前执行，`@PreUpdate` 在 UPDATE 前执行。这样时间字段由后端统一维护，前端不能伪造创建时间。
+
+### 3. DTO 转换边界
+
+```java
+TodoResponse response = todoMapper.toResponse(todo);
+```
+
+Entity 负责数据库，DTO 负责接口，Mapper 负责转换。拆开后，新增数据库内部字段不会自动暴露给前端。

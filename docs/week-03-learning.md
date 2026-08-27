@@ -481,3 +481,47 @@ id 已存在 -> 修改
 不太需要复用的是控制台输入输出代码，因为 Web API 的入口会变成 Controller。
 
 这就是分层的价值：入口可以换，业务逻辑尽量保留。
+
+## 代码精读补充
+
+### 1. 一次“新增 Todo”如何穿过三层
+
+```java
+// UI 层：只负责读取输入
+String title = scanner.nextLine();
+Todo todo = todoService.addTodo(title);
+
+// Service 层：负责业务规则
+public Todo addTodo(String title) {
+    if (title == null || title.isBlank()) {
+        throw new IllegalArgumentException("标题不能为空");
+    }
+    return repository.save(new Todo(null, title.trim(), false));
+}
+
+// Repository 层：负责保存
+public Todo save(Todo todo) {
+    todos.add(todo);
+    return todo;
+}
+```
+
+读取输入、校验业务、保存数据被拆成三个职责。将来把 UI 换成 Controller 时，只替换第一层，Service 的标题校验和 Repository 的数据访问仍然可以复用。
+
+### 2. 为什么 `Optional` 比返回 `null` 更容易读
+
+```java
+Optional<Todo> result = repository.findById(id);
+return result.orElseThrow(() -> new TodoNotFoundException(id));
+```
+
+返回值类型已经提醒调用者“这里可能没有数据”。如果直接返回 `null`，调用者容易忘记判断，最后在别处出现 `NullPointerException`。这就是类型设计对代码安全性的帮助。
+
+### 3. 文件存储的关键边界
+
+```text
+TodoService         -> 只决定保存什么
+FileTodoRepository  -> 决定如何读写文件
+```
+
+Service 不应该拼接文件路径或处理文件格式；否则换成数据库时，业务层也要一起修改。

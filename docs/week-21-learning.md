@@ -329,3 +329,32 @@ JWT 可以携带本次登录的身份和角色信息，认证过滤器能据此�
 ## 十四、下一步
 
 完成本周后，可以继续学习更细粒度的 Permission 权限模型、管理员修改用户角色、操作审计日志、多租户隔离和 OAuth2 / OIDC / 企业 SSO。
+
+## 代码精读补充
+
+### 1. 角色从数据库到 Spring Security 的路径
+
+```text
+users.role = USER / ADMIN
+  -> AppUser.getRole()
+  -> UserRole.authority()
+  -> SimpleGrantedAuthority("ROLE_" + role)
+  -> hasRole("ADMIN")
+```
+
+数据库保存业务角色，Spring Security 使用带 `ROLE_` 前缀的权限名称。`hasRole("ADMIN")` 内部会匹配 `ROLE_ADMIN`，所以两边的命名转换必须保持一致。
+
+### 2. 为什么注册接口不接收 role
+
+```java
+public UserResponse register(String username, String password) {
+    AppUser user = new AppUser(username, encodedPassword, UserRole.USER);
+    return toResponse(userRepository.save(user));
+}
+```
+
+角色由服务端固定设置为 `USER`。如果把 `role` 放进公开注册请求，客户端就能直接注册管理员，权限边界会失效。管理员角色应由受保护的后台操作或数据库迁移设置。
+
+### 3. 401 和 403 的执行位置
+
+认证失败发生在没有有效身份时，进入 `authenticationEntryPoint`，返回 401；身份存在但权限不足时，进入 `accessDeniedHandler`，返回 403。这两个判断都可能发生在 Controller 之前。

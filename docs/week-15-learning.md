@@ -774,3 +774,37 @@ Simple Cache 适合学习、本地开发、单实例小项目。Redis Cache 适�
 ### 16. 新增的 Mockito mock maker 配置是生产功能吗？
 
 不是。它只在测试资源目录下生效，目的是让本机 JDK 21 环境下的测试更稳定，不影响应用运行和打包。
+
+## 代码精读补充
+
+### 1. Profile 如何切换 Redis
+
+```java
+@Configuration
+@Profile("redis")
+public class RedisCacheConfig {
+    // 定义 RedisCacheManager
+}
+```
+
+默认环境加载 `application.properties`，使用 Simple Cache；启用 `redis` 后加载 `application-redis.properties`，并创建 Redis CacheManager。Profile 让环境差异集中在配置和 Bean 选择上，而不是散落在业务代码的 `if (redisEnabled)` 中。
+
+### 2. TTL 的代码意义
+
+```java
+entryTtl(CacheNames.TODO_DETAIL, Duration.ofMinutes(10))
+```
+
+TTL 表示缓存最多保留多久。到期后 Redis 自动删除，下一次读取回源数据库。TTL 不是数据库数据的过期时间，而是缓存副本的生命周期。
+
+### 3. 序列化为什么重要
+
+```text
+Java Todo 对象
+  -> 序列化
+  -> Redis 字节数据
+  -> 反序列化
+  -> Java Todo 对象
+```
+
+Key 使用字符串方便排查，Value 使用 JSON 便于跨语言阅读。缓存配置的职责就是明确这两类数据如何编码和解码。

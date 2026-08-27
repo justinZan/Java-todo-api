@@ -951,3 +951,42 @@ PostgreSQL 测试能发现真实数据库兼容问题，例如 SQL 方言、字�
 ```
 
 先定位行为差异，再看代码原因。
+
+## 代码精读补充
+
+### 1. 集成测试和单元测试的调用层级
+
+```text
+TodoApiTests
+  -> MockMvc
+  -> Filter / Security / Controller / Service / Repository / H2
+
+TodoServiceTest
+  -> TodoService
+  -> Mock Repository / Mock Publisher
+```
+
+集成测试验证模块连接是否正确，单元测试验证一个类的分支是否正确。两者不是替代关系：接口测试发现 wiring 问题，Service 测试更快地覆盖边界条件。
+
+### 2. 测试辅助类为什么返回可继续断言的对象
+
+```java
+public ResultActions login(String username, String password) {
+    return mockMvc.perform(post("/api/auth/login")
+            .content(toJson(new LoginRequest(username, password))));
+}
+```
+
+Helper 封装重复的请求构造，但不隐藏断言。调用方仍可以继续写 `andExpect(status().isOk())`，所以复用和可读性能够同时保留。
+
+### 3. CI 的本质
+
+```text
+提交代码
+  -> 固定 JDK 21
+  -> mvn test
+  -> mvn package
+  -> 给出可重复的通过/失败结果
+```
+
+CI 不是新的业务代码，而是把“代码必须通过构建和测试”变成团队自动执行的规则。

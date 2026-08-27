@@ -480,3 +480,37 @@ ORDER BY id;
 ## 十二、下一周
 
 按照既定路线，下一周是第 24 周：Docker 基础和项目容器化。届时会学习如何编写 Dockerfile、构建 Java 镜像、配置容器环境变量，并让应用在容器中运行。
+
+## 代码精读补充
+
+### 1. Repository 方法名和 SQL 条件的对应关系
+
+```java
+findByUserIdAndDeletedFalseOrderByIdAsc(Long userId, Pageable pageable)
+```
+
+可以拆成：
+
+```text
+findBy                  查询
+UserId                  user_id = ?
+AndDeletedFalse         deleted = false
+OrderByIdAsc            ORDER BY id ASC
+```
+
+方法名查询适合规则清晰的简单查询；当统计、分组或数据库特性变复杂时，再使用 `@Query` 或原生 SQL。
+
+### 2. `EXPLAIN` 应该看什么
+
+```sql
+EXPLAIN SELECT *
+FROM todos
+WHERE user_id = 1 AND deleted = false
+ORDER BY id;
+```
+
+重点看访问路径、是否使用索引、预计扫描行数和排序成本。索引存在不等于一定会使用，优化需要结合数据量、选择性和执行计划。
+
+### 3. 为什么索引字段顺序与代码有关
+
+如果代码总是先按 `user_id`、`deleted` 过滤，再按 `id` 排序，那么索引 `(user_id, deleted, id)` 才能同时服务主要过滤和排序。索引设计必须从真实查询出发，而不是只看单个字段名称。

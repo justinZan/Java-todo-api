@@ -677,3 +677,41 @@ H2 内存数据库只存在于进程内存中。
 - 不依赖本地历史数据
 
 所以测试环境使用 H2 内存数据库更合适。
+
+## 代码精读补充
+
+### 1. Entity 注解如何建立映射
+
+```java
+@Entity
+@Table(name = "todos")
+public class Todo {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+}
+```
+
+`@Entity` 告诉 JPA 这个类需要持久化，`@Table` 指定对应表名，`@Id` 指定主键，`@GeneratedValue` 表示 id 由数据库生成。Java 对象的字段最终会映射到数据库列。
+
+### 2. `JpaRepository` 为什么能直接工作
+
+```java
+public interface TodoRepository extends JpaRepository<Todo, Long> {
+    Page<Todo> findByUserIdAndDeletedFalse(Long userId, Pageable pageable);
+}
+```
+
+继承 `JpaRepository<Todo, Long>` 后，Spring Data 会在启动时生成实现对象。两个泛型分别表示实体类型和主键类型。`findByUserIdAndDeletedFalse` 由方法名生成查询，不需要手写基础 SQL。
+
+### 3. 数据库版调用链
+
+```text
+TodoController
+  -> TodoService
+  -> TodoRepository 代理对象
+  -> EntityManager / Hibernate
+  -> H2 或 PostgreSQL
+```
+
+Service 仍然负责业务规则，JPA 只负责把对象状态同步到数据库。

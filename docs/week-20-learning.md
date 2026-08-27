@@ -884,3 +884,35 @@ curl -X DELETE \
 ```
 
 这就是后端开发里很常见、也很有实战价值的一类能力。
+
+## 代码精读补充
+
+### 1. 上传接口中的 `MultipartFile`
+
+```java
+@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public ApiResponse<TodoAttachmentResponse> upload(
+        @PathVariable Long todoId,
+        @RequestPart("file") MultipartFile file
+) {
+    return ApiResponse.created(service.upload(todoId, file));
+}
+```
+
+`multipart/form-data` 不是 JSON，而是由多个 part 组成的请求体；`@RequestPart("file")` 找到名为 `file` 的文件部分，Spring 将它包装为 `MultipartFile`。Controller 只负责接收，大小、路径和用户权限由 Service 处理。
+
+### 2. 上传业务的两个保存动作
+
+```text
+校验当前用户能访问 Todo
+  -> 校验文件非空、大小和文件名
+  -> 生成安全的 storedFilename
+  -> 保存文件到 uploads
+  -> 保存 TodoAttachment 元数据
+```
+
+文件系统和数据库不是同一个事务，所以代码必须明确失败补偿策略：数据库保存失败时删除刚写入的文件，文件写入失败时不能保存元数据。
+
+### 3. 为什么下载返回文件流
+
+下载接口返回 `Resource` 和 `Content-Disposition: attachment`，浏览器才能把响应当成文件下载。它不是普通 JSON，所以不适合再包一层 `ApiResponse`。

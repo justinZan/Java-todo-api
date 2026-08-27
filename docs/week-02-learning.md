@@ -491,3 +491,46 @@ src/test/java  测试代码
 它很快会变成“万能类”，后续修改任何功能都可能影响其它功能。
 
 拆分职责后，每个类只做好一件事，项目更稳定。
+
+## 代码精读补充
+
+### 1. 接口、实现类和 `@Override`
+
+```java
+public interface TodoRepository {
+    List<Todo> findAll();
+}
+
+public class InMemoryTodoRepository implements TodoRepository {
+    @Override
+    public List<Todo> findAll() {
+        return todos;
+    }
+}
+```
+
+接口只描述“必须提供什么能力”，不关心数据到底保存在哪里。`implements` 表示实现接口，`@Override` 告诉编译器这个方法必须匹配接口中的声明。如果方法名或参数写错，编译阶段就能发现。
+
+### 2. 异常的执行路径
+
+```java
+public Todo findById(Long id) {
+    return repository.findById(id)
+            .orElseThrow(() -> new TodoNotFoundException(id));
+}
+```
+
+`findById` 返回 `Optional<Todo>`，表示结果可能不存在；`orElseThrow` 在没有数据时中断当前正常流程。异常会继续向上抛给调用方，后面的 Spring Boot 项目再由全局异常处理器转换成 HTTP 错误响应。
+
+### 3. `pom.xml` 如何参与构建
+
+```text
+pom.xml
+  -> 声明依赖
+  -> Maven 下载依赖
+  -> 编译 src/main/java
+  -> 编译并运行 src/test/java
+  -> 打包应用
+```
+
+因此 `pom.xml` 不只是“配置文件”，它描述了项目身份、依赖和构建规则。

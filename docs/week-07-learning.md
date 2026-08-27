@@ -539,3 +539,36 @@ GET /api/todos?size=101
 如果 `items` 正确，但 `totalElements` 或 `totalPages` 错了，前端分页器仍然会显示错误。
 
 所以分页测试要同时验证数据和分页信息。
+
+## 代码精读补充
+
+### 1. `PageRequest` 如何描述分页
+
+```java
+Pageable pageable = PageRequest.of(
+        page,
+        size,
+        Sort.by(Sort.Direction.DESC, "createdAt")
+);
+Page<Todo> result = todoRepository.findByUserIdAndDeletedFalse(userId, pageable);
+```
+
+`page` 从 0 开始，`size` 表示每页数量，`Sort` 表示排序。`Page<Todo>` 不只是列表，还包含总元素数、总页数、是否第一页和是否最后一页。
+
+### 2. 为什么 `PageResponse` 不直接暴露 `Page`
+
+```java
+PageResponse<TodoResponse> response = PageResponse.from(page, items);
+```
+
+JPA 的 `Page` 是后端内部类型，直接返回会让接口结构依赖 Spring Data。`PageResponse` 只保留前端需要的字段，后续更换分页实现时 API 不必改变。
+
+### 3. 排序白名单解决什么问题
+
+```java
+if (!ALLOWED_SORT_FIELDS.contains(field)) {
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的排序字段");
+}
+```
+
+排序字段来自 URL，不能无条件拼进查询。白名单既避免非法字段导致错误，也避免把任意数据库字段暴露为可查询能力。

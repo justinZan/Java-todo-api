@@ -798,3 +798,37 @@ Simple Cache 是本地内存缓存，不需要额外安装服务，但应用重�
 ### 15. 本周最重要的工程化思想是什么？
 
 缓存一定要和失效规则一起设计。只加缓存、不考虑数据变化，是非常容易制造线上 bug 的。
+
+## 代码精读补充
+
+### 1. `@Cacheable` 的执行逻辑
+
+```java
+@Cacheable(cacheNames = CacheNames.TODO_DETAIL, key = "#userId + ':' + #id")
+public Todo getTodo(Long userId, Long id) {
+    return todoRepository.findByIdAndUserIdAndDeletedFalse(id, userId)
+            .orElseThrow(() -> new TodoNotFoundException(id));
+}
+```
+
+方法调用前，Spring 先根据 cache name 和 key 查缓存。命中时直接返回，不执行方法；未命中时才查数据库，并把返回值放入缓存。缓存代理是 Spring 创建的，因此同一个类内部直接 `this.getTodo(...)` 时要注意可能绕过代理。
+
+### 2. `@CacheEvict` 为什么写在写方法上
+
+```java
+@CacheEvict(cacheNames = CacheNames.TODO_DETAIL, key = "#userId + ':' + #id")
+public Todo updateTodo(...) {
+    // 修改数据库
+}
+```
+
+更新后旧值已经不可信，所以先删除旧缓存。下一次读取会重新查数据库并写入新值。日志缓存和详情缓存是不同数据，也必须分别清理。
+
+### 3. key 为什么包含用户 id
+
+```text
+用户 A 的 Todo 10 -> 1:10
+用户 B 的 Todo 10 -> 2:10
+```
+
+即使数据库 id 在设计上全局唯一，把用户 id 纳入 key 仍然能把数据权限边界表达在缓存层，避免未来改成局部 id 或复用缓存方法时发生串数据。

@@ -1121,3 +1121,35 @@ Actuator 用来给 Spring Boot 应用提供健康检查、应用信息、运行�
 ```
 
 这就是从“会写功能”继续往“会做工程”走的一步。
+
+## 代码精读补充
+
+### 1. Actuator 和业务状态接口的区别
+
+```text
+/actuator/health
+  -> Spring Boot 基础设施健康状态
+
+/api/internal/jobs/todo-overdue
+  -> 本项目业务任务最近一次执行结果
+```
+
+Actuator 关注应用是否存活、是否准备好接收请求；任务状态服务关注处理数量、耗时和错误消息。两种信息服务不同的排查问题。
+
+### 2. `AtomicReference` 为什么适合保存最近状态
+
+```java
+private final AtomicReference<TodoOverdueJobStatus> latest =
+        new AtomicReference<>(TodoOverdueJobStatus.neverRun());
+```
+
+定时任务可能在后台线程更新状态，同时 HTTP 请求线程读取状态。`AtomicReference` 让整个不可变状态对象可以被原子替换，读取方不会看到半更新的数据。
+
+### 3. `System.nanoTime()` 和当前时间的区别
+
+```java
+long start = System.nanoTime();
+long durationMs = (System.nanoTime() - start) / 1_000_000;
+```
+
+`nanoTime` 用来测经过了多久，不表示日历时间，也不会因为系统时钟校准而倒退。`LocalDateTime` 适合记录业务发生时间，`nanoTime` 适合计算耗时。

@@ -617,3 +617,39 @@ Controller 由 HTTP 请求触发；`@Scheduled` 由时间规则触发，不需�
 ### 13. 第十七周最重要的工程化思想是什么？
 
 后台任务要可配置、可分页、可测试，并且要复用已有业务能力。
+
+## 代码精读补充
+
+### 1. `@Scheduled` 只是触发器
+
+```java
+@Scheduled(
+        cron = "${app.todo.overdue-job.cron}",
+        zone = "${app.todo.overdue-job.zone}"
+)
+public void scanOverdueTodos() {
+    todoOverdueService.recordOverdueTodos(LocalDate.now(), pageSize);
+}
+```
+
+定时任务类负责“什么时候触发”，`TodoOverdueService` 负责“发现哪些 Todo、如何写日志”。拆开后，测试可以直接调用 Service，不必真的等待时钟到 09:00。
+
+### 2. 过期条件是业务规则
+
+```text
+dueDate < today
+AND completed = false
+AND deleted = false
+```
+
+今天到期不算“已经过期”，所以查询使用 `before(today)`。这些条件放在 Repository 查询中，数据库可以直接过滤数据，不必把全部 Todo 加载到 Java 内存再筛选。
+
+### 3. 为什么要做日志去重
+
+```java
+if (!todoActionLogRepository.existsByTodoIdAndAction(todo.getId(), TodoAction.OVERDUE)) {
+    todoEventPublisher.publish(...);
+}
+```
+
+定时任务会重复触发，去重判断保证同一个 Todo 只产生一条 OVERDUE 日志。

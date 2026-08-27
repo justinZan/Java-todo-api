@@ -21,6 +21,7 @@
 - Service 层事务管理
 - Todo 详情和操作日志本地缓存
 - 支持 Redis profile 作为外部缓存
+- Redis 分布式锁、固定窗口限流和请求幂等
 - Actuator 健康检查、应用信息和运行指标
 - Actuator liveness / readiness 探针
 - dev / prod 多环境配置示例
@@ -147,7 +148,9 @@ java-todo-api/
 │   ├── week-21-learning.md
 │   ├── week-22-learning.md
 │   ├── week-23-learning.md
-│   └── week-24-learning.md
+│   ├── week-24-learning.md
+│   ├── week-25-learning.md
+│   └── week-26-learning.md
 └── src/
     ├── main/
     │   ├── java/com/zading/todoapi/
@@ -162,6 +165,7 @@ java-todo-api/
     │   │   ├── mapper/
     │   │   ├── model/
     │   │   ├── repository/
+    │   │   ├── redis/
     │   │   ├── security/
     │   │   └── service/
     │   └── resources/
@@ -189,6 +193,7 @@ java-todo-api/
         │   ├── RbacApiTests.java
         │   ├── TodoQueryOptimizationTests.java
         │   ├── TodoDatabaseDesignTests.java
+        │   ├── RedisProtectionTests.java
         │   ├── TodoAttachmentApiTests.java
         │   ├── TodoApiTests.java
         │   ├── service/
@@ -398,6 +403,32 @@ src/test/resources/application-test.properties
 
 测试环境使用 H2 内存数据库。
 
+### Redis 配置
+
+Redis 配置文件：
+
+```text
+src/main/resources/application-redis.properties
+```
+
+默认启动不连接 Redis，而是使用单 JVM 内存实现。启用 Redis profile 后，缓存、分布式锁、限流和幂等 Key 才会使用真实 Redis：
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=redis
+```
+
+第 26 周的业务参数位于 `app.redis.*`：
+
+```properties
+app.redis.lock-lease=5m
+app.redis.idempotency-ttl=10m
+app.redis.rate-limit-window=1m
+app.redis.login-limit=5
+app.redis.todo-create-limit=30
+```
+
+没有安装 Redis 时，不要启用 `redis` profile；默认配置已经可以运行、测试和学习接口流程。
+
 ### JWT 配置
 
 默认配置文件提供了学习环境可用的 JWT 配置：
@@ -423,6 +454,7 @@ JwtProperties              app.jwt.*
 RequestLoggingProperties   app.request-logging.*
 TodoOverdueJobProperties   app.todo.overdue-job.*
 FileStorageProperties      app.file-storage.*
+RedisProtectionProperties  app.redis.*
 ```
 
 这样业务代码不需要分散读取字符串配置 key，配置结构也更容易校验和维护。
@@ -632,6 +664,8 @@ app.todo.overdue-job.page-size=50
 app.todo.overdue-job.enabled=false
 ```
 
+启用 Redis profile 后，过期扫描会先获取 `lock:todo-overdue-job`。如果其他应用实例已经持有这把锁，本实例会跳过本轮扫描。
+
 任务最近一次执行状态可以通过内部接口查询：
 
 ```http
@@ -730,6 +764,8 @@ src/test/java/com/zading/todoapi/
 ├── OpenApiTests.java            OpenAPI 文档测试
 ├── RbacApiTests.java            角色和管理员接口测试
 ├── TodoQueryOptimizationTests.java 索引、聚合查询和 EXPLAIN 测试
+├── TodoDatabaseDesignTests.java 数据库迁移、约束和乐观锁测试
+├── RedisProtectionTests.java    内存锁、限流和幂等测试
 ├── TodoAttachmentApiTests.java  Todo 附件上传 / 下载接口测试
 ├── TodoApiTests.java            Todo 业务接口测试
 ├── service/
@@ -795,6 +831,7 @@ src/test/java/com/zading/todoapi/
 - 管理员统计和软删除查询单元测试
 - 附件大小、路径安全和文件生命周期单元测试
 - Todo 查询索引、聚合统计和执行计划测试
+- Redis 分布式锁、限流和幂等流程测试
 
 Service 单元测试可以单独运行：
 
@@ -1495,3 +1532,4 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 23 周：查询优化、索引和慢 SQL 思维](docs/week-23-learning.md)
 - [第 24 周：Docker 基础和项目容器化](docs/week-24-learning.md)
 - [第 25 周：PostgreSQL 深入和数据库设计](docs/week-25-learning.md)
+- [第 26 周：Redis 深入——分布式锁、限流和幂等](docs/week-26-learning.md)

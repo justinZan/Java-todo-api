@@ -508,3 +508,34 @@ ports:
 ## 十、下一周
 
 按照既定路线，下一周是第 25 周：PostgreSQL 深入和数据库设计。届时会学习 PostgreSQL 数据类型、约束、事务隔离、数据库设计和 H2 与 PostgreSQL 的差异。
+
+## 代码精读补充
+
+### 1. Dockerfile 多阶段构建
+
+```dockerfile
+FROM maven:3.9-eclipse-temurin-21 AS build
+COPY pom.xml .
+COPY src ./src
+RUN mvn package -DskipTests
+
+FROM eclipse-temurin:21-jre
+COPY --from=build /workspace/target/*.jar app.jar
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+第一阶段需要 Maven 和完整 JDK，只负责编译；第二阶段只保留 JRE 和最终 JAR。最终镜像不包含源码和 Maven 缓存，因此更小，也减少运行时内容。
+
+### 2. Compose 中的数据库持久化
+
+```yaml
+volumes:
+  postgres_data:
+  app_uploads:
+```
+
+容器生命周期和数据生命周期应该分开。数据库文件放入 `postgres_data`，附件放入 `app_uploads`；删除应用容器时，业务数据和文件不会因为容器临时层消失。
+
+### 3. 为什么镜像不写死环境差异
+
+镜像只包含应用，数据库地址、用户名、密码和 JWT 密钥通过环境变量注入。这样同一个镜像可以在测试、预发布和生产环境复用。

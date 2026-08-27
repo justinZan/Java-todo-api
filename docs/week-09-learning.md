@@ -961,6 +961,40 @@ PostgreSQL 可能还在初始化。
 
 这些都是工程化的一部分。
 
+## 代码精读补充
+
+### 1. Compose 文件的执行关系
+
+```text
+postgres
+  -> 启动数据库
+  -> healthcheck 通过
+app
+  -> 使用 postgres:5432 连接数据库
+```
+
+Compose 中的服务名就是容器网络里的 DNS 名称，所以应用配置使用 `postgres`，而不是容器内部的 `localhost`。`depends_on` 配合健康检查表达启动依赖，但应用自身仍应处理数据库连接失败。
+
+### 2. RequestLoggingFilter 的位置
+
+```java
+protected void doFilterInternal(request, response, chain) {
+    String requestId = resolveRequestId(request);
+    try {
+        MDC.put("requestId", requestId);
+        chain.doFilter(request, response);
+    } finally {
+        MDC.remove("requestId");
+    }
+}
+```
+
+Filter 包住整个请求链，适合做 requestId 和耗时统计。`finally` 清理 MDC，避免线程池复用时把上一个请求的 requestId 带给下一个请求。
+
+### 3. OpenAPI 为什么只描述接口
+
+OpenAPI 配置负责文档元信息和 JWT 安全方案，真正的参数、路径和返回类型由 Controller 方法和 DTO 自动生成。这样接口代码与文档保持同源，减少手工维护两份定义。
+
 ### 10. 如果以后要在 CI 里测 PostgreSQL，你会怎么做？
 
 可以在 CI 里启动 PostgreSQL 服务，然后使用 postgres profile 跑测试。

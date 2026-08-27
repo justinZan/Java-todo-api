@@ -209,3 +209,45 @@ mvn -Dtest=TodoDatabaseDesignTests test
 ### 5. H2 的 PostgreSQL 模式能完全替代 PostgreSQL 吗？
 
 不能。它只能提高部分 SQL 兼容性，真实 PostgreSQL 的执行计划、类型、锁和扩展能力仍需要 PostgreSQL 环境验证。
+
+## 代码精读补充
+
+### 1. 数据库约束和 Java 校验是两道防线
+
+```java
+@NotBlank
+@Size(max = 200)
+private String title;
+```
+
+```sql
+CHECK (TRIM(title) <> '')
+```
+
+DTO 校验让接口尽早返回清晰错误，数据库约束防止脚本、后台任务或其他服务写入非法数据。两者不是重复劳动，而是分别保护入口和最终数据。
+
+### 2. `@Version` 如何进入 UPDATE 条件
+
+```java
+@Version
+private Long version;
+```
+
+Hibernate 更新时会生成类似：
+
+```sql
+UPDATE todos
+SET title = ?, version = 2
+WHERE id = ? AND version = 1;
+```
+
+如果受影响行数为 0，说明另一个请求已经修改过数据，Hibernate 抛出乐观锁异常，统一异常处理器再把它转换成 HTTP 409。
+
+### 3. 为什么 Entity 字段长度要和数据库对应
+
+```java
+@Column(nullable = false, length = 200)
+private String title;
+```
+
+Java 的 `String` 本身没有长度限制，数据库列却有。显式声明 `length` 可以让 Entity 意图和迁移脚本保持一致，减少 `validate` 或生产写入时才暴露问题。

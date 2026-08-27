@@ -947,3 +947,38 @@ Page<Todo> findByUserIdAndDeletedTrue(Long userId, Pageable pageable);
 ```
 
 它专门查询当前用户已删除的 Todo。
+
+## 代码精读补充
+
+### 1. 软删除的核心代码
+
+```java
+todo.setDeleted(true);
+todo.setDeletedAt(LocalDateTime.now());
+todoRepository.save(todo);
+```
+
+这里没有调用 `deleteById`，而是修改状态并保存。数据库记录仍然存在，因此操作日志、附件关联和管理员审计仍有机会继续使用这条数据。
+
+### 2. 普通查询为什么必须带 `DeletedFalse`
+
+```java
+Page<Todo> findByUserIdAndDeletedFalse(
+        Long userId,
+        Pageable pageable
+);
+```
+
+软删除后，数据不会自动消失；如果查询方法漏掉 `DeletedFalse`，用户就会重新看到已删除数据。因此“是否可见”必须成为 Repository 查询的一部分，而不是依赖调用方记忆。
+
+### 3. `applyCompleted` 保持两个字段一致
+
+```text
+completed = true
+  -> completedAt = now
+
+completed = false
+  -> completedAt = null
+```
+
+完成状态和完成时间是一个业务状态的两个表现，应该由一个方法统一更新，避免 `update` 和 `toggle` 产生不同结果。

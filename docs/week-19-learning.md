@@ -892,3 +892,35 @@ jar 打包运行说明
 ```
 
 这些就是工程化能力。你已经在从“会写 Java 程序”往“会做 Java 后端工程”走了。
+
+## 代码精读补充
+
+### 1. 配置绑定的执行过程
+
+```java
+@ConfigurationProperties(prefix = "app.jwt")
+public record JwtProperties(String secret, long expirationMinutes) {
+}
+```
+
+`app.jwt.secret` 会绑定到 `secret`，`app.jwt.expiration-minutes` 会绑定到 `expirationMinutes`。Spring 启动时完成字符串到 Java 类型的转换，Service 通过构造器拿到配置对象，不需要到处写配置 key。
+
+### 2. `${ENV:default}` 的含义
+
+```properties
+app.jwt.expiration-minutes=${JWT_EXPIRATION_MINUTES:120}
+```
+
+如果环境变量存在，使用环境变量；不存在时使用 `120`。开发环境有默认值，生产环境可以注入真正的密钥。敏感值不能依赖默认值上线。
+
+### 3. requestId 的传播路径
+
+```text
+请求 Header X-Request-Id
+  -> RequestLoggingFilter
+  -> MDC
+  -> 日志输出
+  -> 响应 Header X-Request-Id
+```
+
+同一个 requestId 把一条请求的多行日志关联起来。请求结束后清理 MDC，是因为线程池会复用线程。

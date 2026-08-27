@@ -513,3 +513,53 @@ Product
 后面的 Controller、Service、Repository 也都是类和对象。
 
 如果对象理解清楚，后面的 Spring Boot 项目会顺很多。
+
+## 代码精读补充
+
+### 1. 从 `main` 方法理解 Java 入口
+
+```java
+public class HelloWorld {
+    public static void main(String[] args) {
+        System.out.println("Hello Java");
+    }
+}
+```
+
+逐部分理解：
+
+- `class HelloWorld` 定义一个名为 `HelloWorld` 的类，文件名也必须是 `HelloWorld.java`；
+- `public` 表示 JVM 可以访问这个方法；
+- `static` 表示不创建对象也能调用；
+- `void` 表示方法不返回结果；
+- `String[] args` 是命令行参数数组；
+- `System.out.println` 把字符串输出到控制台。
+
+后面的 Spring Boot 入口仍然保留 `public static void main`，只是把 `println` 换成了 `SpringApplication.run(...)`。
+
+### 2. 从一个 Todo 对象理解字段和方法
+
+```java
+public class Todo {
+    private String title;
+    private boolean completed;
+
+    public void complete() {
+        this.completed = true;
+    }
+}
+```
+
+`private` 保护字段不被外部随意修改，`this.completed` 表示当前对象的字段。`complete()` 把“完成 Todo”封装成对象行为，比在各处直接写 `todo.setCompleted(true)` 更容易集中维护规则。
+
+### 3. 前端开发者的对应关系
+
+```text
+Java class       ≈ TypeScript type + class
+List<Todo>       ≈ Todo[]
+boolean          ≈ boolean
+main             ≈ 应用启动入口
+方法参数/返回值  ≈ 函数参数/返回值
+```
+
+本周先重点看“数据类型、对象、方法如何组合”，不要急着背所有 Java 关键字。

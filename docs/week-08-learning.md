@@ -1445,3 +1445,40 @@ sub = userId
 ```
 
 这个可以作为后续优化点。
+
+## 代码精读补充
+
+### 1. 注册和登录的职责不同
+
+```text
+register
+  -> 校验用户名是否重复
+  -> BCrypt.encode(password)
+  -> 保存 passwordHash
+
+login
+  -> 查询用户
+  -> BCrypt.matches(password, passwordHash)
+  -> JwtService.generateToken(user)
+```
+
+注册负责创建身份，登录负责验证身份并签发凭证。数据库永远不保存原始密码，`matches` 会使用 BCrypt 中包含的随机盐完成比对。
+
+### 2. JWT 过滤器为什么要放入 `SecurityContext`
+
+```java
+AuthenticatedUser principal = new AuthenticatedUser(id, username, role);
+UsernamePasswordAuthenticationToken authentication =
+        new UsernamePasswordAuthenticationToken(principal, null, authorities);
+SecurityContextHolder.getContext().setAuthentication(authentication);
+```
+
+过滤器完成的是“把字符串 Token 转成当前用户身份”。放入 `SecurityContext` 后，后续 Controller 才能通过 `@AuthenticationPrincipal` 取到当前用户；业务代码不需要重复解析 Token。
+
+### 3. 用户隔离必须进入查询条件
+
+```java
+todoRepository.findByIdAndUserIdAndDeletedFalse(todoId, currentUserId);
+```
+
+不能先按 Todo id 查询，再相信前端传来的 `userId`。用户 id 应该来自认证上下文，且直接进入 Repository 查询条件。

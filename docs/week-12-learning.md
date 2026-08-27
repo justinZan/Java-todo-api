@@ -990,3 +990,34 @@ UNAUTHORIZED：未登录或没有携带有效 token
 把重复规则集中管理。
 
 统一响应、统一错误码、统一异常处理，本质都是为了减少散落在各处的重复判断和重复 JSON 结构。
+
+## 代码精读补充
+
+### 1. `ApiResponse<T>` 中的泛型
+
+```java
+public class ApiResponse<T> {
+    private boolean success;
+    private String code;
+    private String message;
+    private T data;
+}
+```
+
+`T` 是可替换的数据类型：`ApiResponse<TodoResponse>` 表示 Todo 响应，`ApiResponse<List<TodoResponse>>` 表示列表响应，`ApiResponse<Void>` 表示没有业务数据。这样外层结构统一，内部数据仍然保持类型安全。
+
+### 2. 异常如何变成错误 JSON
+
+```java
+@ExceptionHandler(BusinessException.class)
+public ResponseEntity<ApiResponse<Void>> handleBusinessException(...) {
+    return ResponseEntity.status(exception.getErrorCode().getHttpStatus())
+            .body(ApiResponse.error(exception.getErrorCode(), ...));
+}
+```
+
+业务代码只需要抛出带错误码的异常，`GlobalExceptionHandler` 负责选择 HTTP 状态码和统一响应结构。这样每个 Controller 不必重复写错误响应。
+
+### 3. 为什么认证错误还要在 `SecurityConfig` 处理
+
+JWT 认证和权限判断发生在 Filter 链，可能还没有进入 Controller。`authenticationEntryPoint` 处理 401，`accessDeniedHandler` 处理 403；MVC 的 `@RestControllerAdvice` 主要处理已经进入 Controller 的异常。
