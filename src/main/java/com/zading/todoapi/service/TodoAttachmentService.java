@@ -68,6 +68,8 @@ public class TodoAttachmentService {
 
             return todoAttachmentRepository.save(attachment);
         } catch (IOException ex) {
+            // transferTo 可能已经写入了部分内容；IO 失败时也必须清理临时文件。
+            deleteFileQuietly(targetPath);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "保存附件失败");
         } catch (RuntimeException ex) {
             deleteFileQuietly(targetPath);

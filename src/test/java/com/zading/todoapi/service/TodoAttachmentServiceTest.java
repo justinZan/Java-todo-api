@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -121,6 +123,32 @@ class TodoAttachmentServiceTest {
         );
 
         assertEquals("BAD_REQUEST", exception.getErrorCode().name());
+        verify(todoAttachmentRepository, never()).save(any(TodoAttachment.class));
+    }
+
+    @Test
+    void shouldDeletePartialFileWhenStorageFails() throws Exception {
+        Todo todo = todo(10L, 1L);
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.isEmpty()).thenReturn(false);
+        when(file.getOriginalFilename()).thenReturn("broken.txt");
+        when(todoRepository.findByIdAndUserIdAndDeletedFalse(10L, 1L)).thenReturn(Optional.of(todo));
+        doAnswer(invocation -> {
+            Path targetPath = invocation.getArgument(0);
+            Files.createDirectories(targetPath.getParent());
+            Files.writeString(targetPath, "partial");
+            throw new IOException("模拟磁盘写入失败");
+        }).when(file).transferTo(any(Path.class));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> todoAttachmentService.uploadAttachment(1L, 10L, file)
+        );
+
+        assertEquals("INTERNAL_ERROR", exception.getErrorCode().name());
+        try (var paths = Files.walk(tempDir)) {
+            assertEquals(0, paths.filter(Files::isRegularFile).count());
+        }
         verify(todoAttachmentRepository, never()).save(any(TodoAttachment.class));
     }
 
