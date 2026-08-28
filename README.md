@@ -1540,3 +1540,5 @@ curl -X PATCH http://localhost:8080/api/todos/1/restore \
 - [第 24 周：Docker 基础和项目容器化](docs/week-24-learning.md)
 - [第 25 周：PostgreSQL 深入和数据库设计](docs/week-25-learning.md)
 - [第 26 周：Redis 深入——分布式锁、限流和幂等](docs/week-26-learning.md)
+- [第 27 周：Kafka / RabbitMQ 消息队列](docs/week-27-learning.md)
+- [第 28 周：综合项目复盘和工程化重构](docs/week-28-learning.md)

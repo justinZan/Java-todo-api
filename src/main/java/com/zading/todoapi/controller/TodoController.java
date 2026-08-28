@@ -9,9 +9,9 @@ import com.zading.todoapi.dto.UpdateTodoRequest;
 import com.zading.todoapi.config.properties.RedisProtectionProperties;
 import com.zading.todoapi.exception.BusinessException;
 import com.zading.todoapi.exception.ErrorCode;
+import com.zading.todoapi.mapper.TodoActionLogMapper;
 import com.zading.todoapi.mapper.TodoMapper;
 import com.zading.todoapi.model.Todo;
-import com.zading.todoapi.model.TodoActionLog;
 import com.zading.todoapi.redis.RateLimitDecision;
 import com.zading.todoapi.redis.RateLimiter;
 import com.zading.todoapi.security.AuthenticatedUser;
@@ -22,7 +22,6 @@ import jakarta.validation.constraints.Min;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -39,40 +38,31 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/todos")
 @Validated
 public class TodoController {
-    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
-            "id",
-            "title",
-            "completed",
-            "deleted",
-            "priority",
-            "dueDate",
-            "completedAt",
-            "deletedAt",
-            "createdAt",
-            "updatedAt"
-    );
-
     private final TodoService todoService;
     private final TodoMapper todoMapper;
+    private final TodoActionLogMapper todoActionLogMapper;
+    private final TodoSortParser todoSortParser;
     private final RateLimiter rateLimiter;
     private final RedisProtectionProperties redisProperties;
 
     public TodoController(
             TodoService todoService,
             TodoMapper todoMapper,
+            TodoActionLogMapper todoActionLogMapper,
+            TodoSortParser todoSortParser,
             RateLimiter rateLimiter,
             RedisProtectionProperties redisProperties
     ) {
         this.todoService = todoService;
         this.todoMapper = todoMapper;
+        this.todoActionLogMapper = todoActionLogMapper;
+        this.todoSortParser = todoSortParser;
         this.rateLimiter = rateLimiter;
         this.redisProperties = redisProperties;
     }
@@ -86,7 +76,7 @@ public class TodoController {
             @RequestParam(defaultValue = "10") @Min(value = 1, message = "size 不能小于 1") @Max(value = 100, message = "size 不能大于 100") int size,
             @RequestParam(defaultValue = "id,asc") String sort
     ) {
-        Pageable pageable = PageRequest.of(page, size, parseSort(sort));
+        Pageable pageable = PageRequest.of(page, size, todoSortParser.parse(sort));
         Page<Todo> todos = todoService.getTodos(currentUser.getId(), completed, keyword, pageable);
         List<TodoResponse> items = todoMapper.toResponseList(todos);
 
@@ -103,10 +93,9 @@ public class TodoController {
             @AuthenticationPrincipal AuthenticatedUser currentUser,
             @PathVariable Long id
     ) {
-        List<TodoActionLogResponse> logs = todoService.getTodoLogs(currentUser.getId(), id)
-                .stream()
-                .map(this::toLogResponse)
-                .toList();
+        List<TodoActionLogResponse> logs = todoActionLogMapper.toResponseList(
+                todoService.getTodoLogs(currentUser.getId(), id)
+        );
 
         return ApiResponse.success(logs);
     }
@@ -178,40 +167,4 @@ public class TodoController {
         return ApiResponse.success("删除成功", null);
     }
 
-    private Sort parseSort(String sort) {
-        String[] parts = sort.split(",");
-        String field = parts[0].trim();
-        String direction = parts.length > 1 ? parts[1].trim() : "asc";
-
-        if (!ALLOWED_SORT_FIELDS.contains(field)) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的排序字段: " + field);
-        }
-
-        Sort.Direction sortDirection = parseDirection(direction);
-        Sort requestedSort = Sort.by(sortDirection, field);
-
-        // 非唯一字段排序时补充 id，保证分页翻页时顺序稳定。
-        if (!"id".equals(field)) {
-            requestedSort = requestedSort.and(Sort.by(Sort.Direction.ASC, "id"));
-        }
-
-        return requestedSort;
-    }
-
-    private Sort.Direction parseDirection(String direction) {
-        if (Arrays.stream(Sort.Direction.values()).map(Enum::name).anyMatch(name -> name.equalsIgnoreCase(direction))) {
-            return Sort.Direction.fromString(direction);
-        }
-
-        throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的排序方向: " + direction);
-    }
-
-    private TodoActionLogResponse toLogResponse(TodoActionLog log) {
-        return new TodoActionLogResponse(
-                log.getId(),
-                log.getAction(),
-                log.getDescription(),
-                log.getCreatedAt()
-        );
-    }
 }
