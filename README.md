@@ -22,6 +22,7 @@
 - Todo 详情和操作日志本地缓存
 - 支持 Redis profile 作为外部缓存
 - Redis 分布式锁、固定窗口限流和请求幂等
+- Kafka / RabbitMQ 消息队列适配和 Todo 操作日志消息化
 - Actuator 健康检查、应用信息和运行指标
 - Actuator liveness / readiness 探针
 - dev / prod 多环境配置示例
@@ -60,6 +61,8 @@
 - Spring Data JPA
 - Spring Cache
 - Spring Data Redis
+- Spring Kafka
+- Spring AMQP / RabbitMQ
 - Spring Event / Async
 - Spring Scheduling
 - Spring Boot Actuator
@@ -107,6 +110,8 @@ com.zading.todoapi
 ├── mapper       Entity 到 DTO 的转换
 ├── model        JPA Entity
 ├── repository   Spring Data JPA Repository
+├── redis        Redis / 内存版锁、限流和幂等实现
+├── messaging    消息模型、发布器、消费者和幂等处理器
 ├── security     JWT 和 Spring Security 配置
 └── service      业务逻辑
 ```
@@ -173,6 +178,8 @@ java-todo-api/
     │       ├── application.properties
     │       ├── application-postgres.properties
     │       ├── application-prod.properties
+    │       ├── application-kafka.properties
+    │       ├── application-rabbitmq.properties
     │       ├── application-redis.properties
     │       └── db/migration/
     │           ├── V1__create_todos_table.sql
