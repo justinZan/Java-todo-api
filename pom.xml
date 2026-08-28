@@ -60,6 +60,24 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <!-- Kafka：启用 kafka profile 时作为消息生产者和消费者客户端使用。 -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- RabbitMQ：启用 rabbitmq profile 时作为消息生产者和消费者客户端使用。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- RabbitMQ 消费失败重试和死信恢复器使用 Spring Retry。 -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+
         <!-- Actuator：提供 health、info、metrics 等运行状态端点。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
