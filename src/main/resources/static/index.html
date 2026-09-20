@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="java-todo-api 每日学习首页：每天两小时，用项目化方式学习 Java 后端开发。">
+    <title>Java Todo Lab｜每日学习首页</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script defer src="/app.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#today">跳到今日学习</a>
+
+<header class="topbar">
+    <a class="brand" href="#overview" aria-label="返回首页">
+        <span class="brand-mark">J</span>
+        <span>
+            <strong>Java Todo Lab</strong>
+            <small>个人后端学习空间</small>
+        </span>
+    </a>
+    <nav aria-label="主导航">
+        <a href="#today">今日学习</a>
+        <a href="#roadmap">28 周路线</a>
+        <a href="#project">项目入口</a>
+    </nav>
+    <a class="nav-action" href="#today">开始学习</a>
+</header>
+
+<main>
+    <section class="hero" id="overview">
+        <div class="hero-copy">
+            <p class="eyebrow">JAVA 21 · SPRING BOOT · PROJECT FIRST</p>
+            <h1>每天两小时，<br>把 Java 写进真实项目</h1>
+            <p class="hero-description">
+                不把知识点单独背下来。每天只解决一个后端问题，读一段源码、完成一次修改、运行测试，再写下设计原因。
+            </p>
+            <div class="hero-actions">
+                <a class="button button-primary" href="#today">查看今天学什么</a>
+                <a class="button button-secondary" href="/swagger-ui.html">打开 Swagger</a>
+            </div>
+        </div>
+
+        <aside class="hero-status" aria-label="学习状态">
+            <p class="status-label">当前学习位置</p>
+            <strong id="hero-week">第 1 周</strong>
+            <span id="hero-topic">Java 程序结构与基础语法</span>
+            <div class="status-meta" aria-label="今日学习信息">
+                <span id="hero-day">DAY 1</span>
+                <span id="hero-concept-count">8 个技术点</span>
+            </div>
+            <p class="status-detail">今天重点：<span id="hero-day-focus">建立概念模型</span></p>
+            <p class="local-note">周次与天数保存在当前浏览器，不写入数据库。</p>
+        </aside>
+    </section>
+
+    <section class="section daily-section" id="today">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">TODAY</p>
+                <h2>今天的学习内容</h2>
+                <p id="today-date" class="section-description"></p>
+            </div>
+            <div class="study-selectors" aria-label="选择学习进度">
+                <label>
+                    <span>周次</span>
+                    <select id="week-select" aria-label="选择周次"></select>
+                </label>
+                <label>
+                    <span>天数</span>
+                    <select id="day-select" aria-label="选择本周第几天">
+                        <option value="1">第 1 天</option>
+                        <option value="2">第 2 天</option>
+                        <option value="3">第 3 天</option>
+                        <option value="4">第 4 天</option>
+                        <option value="5">第 5 天</option>
+                        <option value="6">第 6 天</option>
+                        <option value="7">第 7 天</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+
+        <div class="daily-layout">
+            <article class="daily-main">
+                <div class="topic-line">
+                    <span id="stage-label" class="stage-label"></span>
+                    <span id="day-label" class="day-label"></span>
+                </div>
+                <h3 id="daily-title"></h3>
+                <p id="daily-focus" class="daily-focus"></p>
+
+                <div class="learning-summary">
+                    <section class="objective-panel">
+                        <div class="mini-heading">
+                            <span>01</span>
+                            <h4>今日 3 个目标</h4>
+                        </div>
+                        <ol id="objective-list" class="objective-list"></ol>
+                    </section>
+                    <section class="concept-panel">
+                        <div class="mini-heading">
+                            <span>02</span>
+                            <h4>知识点索引</h4>
+                        </div>
+                        <div id="concept-list" class="concept-list"></div>
+                    </section>
+                </div>
+
+                <section class="knowledge-section">
+                    <div class="task-header">
+                        <div>
+                            <h4>本周 8 个技术知识点</h4>
+                            <p>5 个核心概念，加 3 个原理、边界或排错知识。</p>
+                        </div>
+                        <span class="section-tag">基础 5 + 进阶 3</span>
+                    </div>
+                    <div id="knowledge-list" class="knowledge-list"></div>
+                </section>
+
+                <section class="source-config-section">
+                    <div class="task-header">
+                        <div>
+                            <h4>源码与配置解读</h4>
+                            <p>直接阅读项目中的关键代码，并理解配置为什么这样写。</p>
+                        </div>
+                        <span class="section-tag">真实项目代码</span>
+                    </div>
+                    <div class="source-config-grid">
+                        <article class="source-panel">
+                            <div class="source-panel-heading">
+                                <div>
+                                    <span>源码文件</span>
+                                    <strong id="source-file"></strong>
+                                </div>
+                                <span id="source-language" class="code-language"></span>
+                            </div>
+                            <pre class="source-code"><code id="source-code"></code></pre>
+                            <div class="source-explanation">
+                                <h5>逐行解读</h5>
+                                <ol id="source-note-list"></ol>
+                            </div>
+                        </article>
+                        <aside class="config-panel">
+                            <div class="config-panel-heading">
+                                <span>配置文件</span>
+                                <strong id="config-file"></strong>
+                            </div>
+                            <div id="config-list" class="config-list"></div>
+                        </aside>
+                    </div>
+                </section>
+
+                <div class="deliverable">
+                    <span>今天完成</span>
+                    <strong id="daily-deliverable"></strong>
+                </div>
+
+                <section class="specific-study-section">
+                    <div class="task-header">
+                        <div>
+                            <h4>今天具体学习什么</h4>
+                            <p>下面的内容会随“周次 + 天数”一起变化。</p>
+                        </div>
+                        <span id="study-mode-label" class="section-tag"></span>
+                    </div>
+                    <div id="specific-study-list" class="specific-study-list"></div>
+                </section>
+
+                <div class="practice-grid">
+                    <section class="code-path-panel">
+                        <div class="mini-heading">
+                            <span>03</span>
+                            <h4>源码阅读路径</h4>
+                        </div>
+                        <ol id="code-path-list" class="guided-list"></ol>
+                    </section>
+                    <section class="lab-panel">
+                        <div class="mini-heading">
+                            <span>04</span>
+                            <h4>动手实验步骤</h4>
+                        </div>
+                        <ol id="lab-step-list" class="guided-list"></ol>
+                        <div class="expected-result">
+                            <span>验收结果</span>
+                            <p id="expected-result"></p>
+                        </div>
+                    </section>
+                </div>
+
+            </article>
+
+            <aside class="daily-reference">
+                <section>
+                    <h4>先读这些文件</h4>
+                    <ul id="file-list" class="reference-list"></ul>
+                </section>
+                <section>
+                    <h4>今天运行</h4>
+                    <div id="command-list" class="command-list"></div>
+                </section>
+                <section class="pitfall-box">
+                    <h4>今天特别注意</h4>
+                    <p id="pitfall-text"></p>
+                </section>
+                <section class="question-box">
+                    <h4>复盘问题</h4>
+                    <ol id="review-list" class="review-list"></ol>
+                </section>
+                <section class="note-box">
+                    <h4>学习记录模板</h4>
+                    <ul>
+                        <li><strong>我改了什么：</strong>记录文件、类和方法。</li>
+                        <li><strong>为什么这样改：</strong>说明解决的问题和取舍。</li>
+                        <li><strong>我如何验证：</strong>保存命令、结果和失败现象。</li>
+                    </ul>
+                </section>
+            </aside>
+        </div>
+    </section>
+
+    <section class="section roadmap-section" id="roadmap">
+        <div class="section-heading compact-heading">
+            <div>
+                <p class="eyebrow">ROADMAP</p>
+                <h2>28 周项目路线</h2>
+            </div>
+            <p class="section-description">点击周次，可以直接切换上面的今日学习内容。</p>
+        </div>
+        <div id="roadmap-list" class="roadmap-list"></div>
+    </section>
+
+    <section class="section project-section" id="project">
+        <div class="project-copy">
+            <p class="eyebrow">PROJECT</p>
+            <h2>把学习结果放回 java-todo-api</h2>
+            <p>默认配置使用 H2、内存缓存和内存消息实现。本机没有 PostgreSQL、Redis、Kafka、RabbitMQ 或 Docker，也能启动和测试。</p>
+        </div>
+        <div class="project-links">
+            <a href="/swagger-ui.html"><span>接口调试</span><strong>Swagger UI</strong></a>
+            <a href="/actuator/health"><span>运行状态</span><strong>Actuator Health</strong></a>
+            <a href="/h2-console"><span>本地数据库</span><strong>H2 Console</strong></a>
+            <a href="/v3/api-docs"><span>接口定义</span><strong>OpenAPI JSON</strong></a>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <p>Java Todo Lab · 每天完成一个可以验证的技术目标</p>
+    <a href="#overview">回到顶部</a>
+</footer>
+
+<noscript>
+    <div class="noscript">请启用 JavaScript，以查看不同周次和天数的详细学习内容。</div>
+</noscript>
+</body>
+</html>
