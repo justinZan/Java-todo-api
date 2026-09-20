@@ -2,6 +2,29 @@
 
 基于 Spring Boot 的 Todo REST API，提供用户注册、登录认证、JWT 鉴权、RBAC 角色权限控制，以及 Todo 的创建、查询、修改、切换完成状态、删除、筛选等能力。
 
+## Java 学习首页
+
+本工程内置了一个交互式 Java 学习首页，用于查看 28 周学习路线、每天的知识点、相关源码以及配置解析。学习首页属于当前 Spring Boot 工程，不需要部署到其他网站。
+
+启动项目：
+
+```bash
+mvn spring-boot:run
+```
+
+项目启动成功后，点击下面的地址即可查看：
+
+### [打开 Java 学习首页：http://localhost:8080/](http://localhost:8080/)
+
+> 该地址需要本地 Java 项目处于运行状态。如果无法打开，请先确认终端中没有启动错误，并检查 `8080` 端口是否被其他程序占用。
+
+首页相关文件：
+
+- [页面结构：index.html](src/main/resources/static/index.html)
+- [学习内容与交互逻辑：app.js](src/main/resources/static/app.js)
+- [页面样式：styles.css](src/main/resources/static/styles.css)
+- [每周详细学习文档](docs/)
+
 ## 功能特性
 
 - RESTful Todo API
