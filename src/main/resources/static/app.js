@@ -1170,9 +1170,28 @@ const dayPlans = [
     },
 ];
 
+// file:// 页面在部分浏览器或隐私模式下可能禁止访问 localStorage。
+// 读取或保存失败时退化为内存状态，不影响首页本身的展示和切换功能。
+const progressStorage = {
+    get(key) {
+        try {
+            return window.localStorage.getItem(key);
+        } catch {
+            return null;
+        }
+    },
+    set(key, value) {
+        try {
+            window.localStorage.setItem(key, value);
+        } catch {
+            // 离线页面仍可使用，只是不保存刷新后的学习位置。
+        }
+    },
+};
+
 const state = {
-    week: Number(localStorage.getItem("java-todo-current-week")) || 1,
-    day: Number(localStorage.getItem("java-todo-current-day")) || 1,
+    week: Number(progressStorage.get("java-todo-current-week")) || 1,
+    day: Number(progressStorage.get("java-todo-current-day")) || 1,
 };
 
 const weekSelect = document.querySelector("#week-select");
@@ -1509,7 +1528,7 @@ function renderRoadmap() {
         button.addEventListener("click", () => {
             state.week = week.week;
             weekSelect.value = String(week.week);
-            localStorage.setItem("java-todo-current-week", String(state.week));
+            progressStorage.set("java-todo-current-week", String(state.week));
             renderPage();
             document.querySelector("#today").scrollIntoView({ behavior: "smooth" });
         });
@@ -1577,13 +1596,13 @@ daySelect.value = String(state.day);
 
 weekSelect.addEventListener("change", () => {
     state.week = Number(weekSelect.value);
-    localStorage.setItem("java-todo-current-week", String(state.week));
+    progressStorage.set("java-todo-current-week", String(state.week));
     renderPage();
 });
 
 daySelect.addEventListener("change", () => {
     state.day = Number(daySelect.value);
-    localStorage.setItem("java-todo-current-day", String(state.day));
+    progressStorage.set("java-todo-current-day", String(state.day));
     renderPage();
 });
 
